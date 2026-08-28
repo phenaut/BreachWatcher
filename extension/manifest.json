@@ -17,8 +17,7 @@
     "<all_urls>"
   ],
   "background": {
-    "scripts": ["background/background.js"],
-    "type": "module"
+    "scripts": ["background/background.js"]
   },
   "action": {
     "default_title": "BreachWatcher",
