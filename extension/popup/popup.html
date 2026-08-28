@@ -47,12 +47,20 @@
           <span class="status-icon">⚠️</span>
           <h2>Piratages signalés (<span id="incidentCount">0</span>)</h2>
         </div>
-        <p class="status-desc">
-          Des articles font état d'incidents ou de compromissions liées à ce domaine.
+        <p class="status-desc" id="dangerSummary">
+          Des incidents ou des compromissions ont été documentés pour ce site.
         </p>
-        <div class="articles-list-container">
-          <h3 class="section-title">Articles de presse associés :</h3>
-          <ul id="articlesList" class="articles-list"></ul>
+
+        <!-- Section des brèches historiques / répertoriées -->
+        <div id="breachesSection" class="section-container hidden">
+          <h3 class="section-title">🛡️ Fuites & Incidents répertoriés :</h3>
+          <ul id="breachesList" class="items-list"></ul>
+        </div>
+
+        <!-- Section des articles de presse -->
+        <div id="articlesSection" class="section-container hidden">
+          <h3 class="section-title">📰 Articles de presse associés :</h3>
+          <ul id="articlesList" class="items-list"></ul>
         </div>
       </div>
 

@@ -102,14 +102,19 @@ export default {
         }, 400);
       }
 
+      const forceRefresh = url.searchParams.get('refresh') === 'true' || url.searchParams.get('refresh') === '1';
+
       try {
         // A. Consultation du cache KV (7 jours)
-        const cachedData = await getCachedBreachData(env.BREACH_CACHE, domain);
-        if (cachedData) {
-          return jsonResponse({
-            ...cachedData,
-            source: 'kv_cache'
-          });
+        // On ignore le cache si un rafraîchissement est demandé ou si le cache est au format antérieur (sans le champ 'breaches')
+        if (!forceRefresh) {
+          const cachedData = await getCachedBreachData(env.BREACH_CACHE, domain);
+          if (cachedData && Array.isArray(cachedData.breaches)) {
+            return jsonResponse({
+              ...cachedData,
+              source: 'kv_cache'
+            });
+          }
         }
 
         // B. Interrogation de l'API de presse/brèche si non présent en cache

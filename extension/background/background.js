@@ -25,11 +25,11 @@ async function getProxyUrl() {
  * @param {string} domain
  * @returns {Promise<object>}
  */
-async function checkDomainWithProxy(domain) {
+async function checkDomainWithProxy(domain, forceRefresh = false) {
   if (!domain) return { breaches: [], count: 0, hasBreach: false };
 
   // Vérification dans le cache mémoire local
-  if (domainMemoryCache.has(domain)) {
+  if (!forceRefresh && domainMemoryCache.has(domain)) {
     const cached = domainMemoryCache.get(domain);
     // Cache valide 30 minutes côté client
     if (Date.now() - cached.timestamp < 30 * 60 * 1000) {
@@ -38,11 +38,13 @@ async function checkDomainWithProxy(domain) {
   }
 
   const baseUrl = await getProxyUrl();
-  const endpoint = `${baseUrl}/api/check?domain=${encodeURIComponent(domain)}`;
+  const refreshParam = forceRefresh ? '&refresh=true' : '';
+  const endpoint = `${baseUrl}/api/check?domain=${encodeURIComponent(domain)}${refreshParam}`;
 
   try {
     const response = await fetch(endpoint, {
       method: 'GET',
+      signal: AbortSignal.timeout ? AbortSignal.timeout(3500) : undefined,
       headers: {
         'Accept': 'application/json'
       }
@@ -55,8 +57,12 @@ async function checkDomainWithProxy(domain) {
     const data = await response.json();
     const result = {
       domain: domain,
-      hasBreach: Boolean(data.hasBreach || (data.articles && data.articles.length > 0)),
-      count: data.count || (data.articles ? data.articles.length : 0),
+      brand: data.brand || '',
+      hasBreach: Boolean(data.hasBreach || (data.articles && data.articles.length > 0) || (data.breaches && data.breaches.length > 0)),
+      count: data.count || ((data.articles?.length || 0) + (data.breaches?.length || 0)),
+      breachCount: data.breachCount || (data.breaches?.length || 0),
+      newsCount: data.newsCount || (data.articles?.length || 0),
+      breaches: data.breaches || [],
       articles: data.articles || [],
       lastChecked: data.lastChecked || new Date().toISOString(),
       cachedAt: data.cachedAt || null
@@ -70,8 +76,9 @@ async function checkDomainWithProxy(domain) {
       domain: domain,
       hasBreach: false,
       count: 0,
+      breaches: [],
       articles: [],
-      error: error.message
+      error: `Proxy inaccessible (${error.message || 'délai dépassé'}). Vérifiez que le Worker tourne sur http://127.0.0.1:8787.`
     };
   }
 }
@@ -168,30 +175,36 @@ browser.tabs.onRemoved.addListener((tabId) => {
   browser.storage.local.remove(`tab_${tabId}`).catch(() => {});
 });
 
-// 4. Écoute des messages venant de la popup
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'getCurrentTabStatus') {
-    (async () => {
-      try {
-        const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-        if (!tab || !tab.url) {
-          sendResponse({ success: false, reason: 'no_active_tab' });
-          return;
-        }
+// Traitement asynchrone des demandes de statut pour la popup
+async function handleGetCurrentTabStatus(message) {
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (!tab || !tab.url) {
+      return { success: false, reason: 'no_active_tab' };
+    }
 
-        const domain = extractMainDomain(tab.url);
-        if (!domain) {
-          sendResponse({ success: false, reason: 'unsupported_url', url: tab.url });
-          return;
-        }
+    const domain = extractMainDomain(tab.url);
+    if (!domain) {
+      return { success: false, reason: 'unsupported_url', url: tab.url };
+    }
 
-        const breachInfo = await checkDomainWithProxy(domain);
-        sendResponse({ success: true, tabId: tab.id, url: tab.url, domain, breachInfo });
-      } catch (err) {
-        sendResponse({ success: false, error: err.message });
-      }
-    })();
-    return true; // Réponse asynchrone
+    const forceRefresh = Boolean(message.forceRefresh);
+    const breachInfo = await checkDomainWithProxy(domain, forceRefresh);
+    if (forceRefresh) {
+      await updateTabBadge(tab.id, breachInfo);
+    }
+
+    return { success: true, tabId: tab.id, url: tab.url, domain, breachInfo };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+// 4. Écoute des messages venant de la popup (compatible Firefox Promise)
+browser.runtime.onMessage.addListener((message, sender) => {
+  if (message && message.action === 'getCurrentTabStatus') {
+    return handleGetCurrentTabStatus(message);
   }
 });
 

@@ -192,22 +192,23 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* Articles List */
-.articles-list-container {
-  margin-top: 8px;
+/* Lists & Containers */
+.section-container {
+  margin-top: 10px;
 }
 
 .section-title {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 6px;
+  font-weight: 600;
 }
 
-.articles-list {
+.items-list {
   list-style: none;
-  max-height: 200px;
+  max-height: 170px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -215,20 +216,89 @@ body {
   padding-right: 4px;
 }
 
-.articles-list::-webkit-scrollbar {
+.items-list::-webkit-scrollbar {
   width: 4px;
 }
 
-.articles-list::-webkit-scrollbar-thumb {
+.items-list::-webkit-scrollbar-thumb {
   background: var(--border-color);
   border-radius: 4px;
 }
 
+/* Breach Item (Historique) */
+.breach-item {
+  background: var(--bg-card);
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 3px solid var(--color-danger);
+  border-top: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.breach-title {
+  font-size: 12px;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.date-badge {
+  font-size: 10px;
+  background: rgba(231, 76, 60, 0.2);
+  color: #ff7675;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.pwn-count {
+  font-size: 11px;
+  color: #fab1a0;
+  font-weight: 500;
+}
+
+.item-summary {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.data-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.data-tag {
+  font-size: 10px;
+  background: #252530;
+  color: #a0a0b2;
+  border: 1px solid var(--border-color);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* Article Item (Presse) */
 .article-item {
   background: var(--bg-card);
   padding: 8px 10px;
   border-radius: 6px;
-  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--color-warning);
+  border-top: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
   transition: transform 0.15s, border-color 0.15s;
 }
 
