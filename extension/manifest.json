@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "BreachWatcher",
-  "version": "0.01.004",
+  "version": "1.0.4",
   "description": "Avertit si le site visité a fait l'objet d'un piratage ou d'une fuite de données. Vérifie Have I Been Pwned et la presse. 100% autonome, cache local 7 jours, aucun serveur tiers.",
 
   "icons": {
