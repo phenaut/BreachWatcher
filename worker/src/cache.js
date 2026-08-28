@@ -3,6 +3,9 @@
  * Les données d'analyse d'un domaine sont conservées pendant 7 jours.
  */
 
+// Version du schéma de cache (permet d'invalider proprement les anciens formats)
+export const CACHE_VERSION = 'v2';
+
 // 7 jours en secondes : 7 * 24 * 60 * 60 = 604 800 secondes
 export const CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
@@ -17,7 +20,7 @@ export async function getCachedBreachData(kvNamespace, domain) {
     return null;
   }
 
-  const key = `domain:${domain.toLowerCase()}`;
+  const key = `bw:${CACHE_VERSION}:${domain.toLowerCase()}`;
 
   try {
     const rawData = await kvNamespace.get(key, { type: 'json' });
@@ -38,7 +41,7 @@ export async function getCachedBreachData(kvNamespace, domain) {
  * Enregistre les données d'analyse dans le KV avec un TTL de 7 jours.
  * @param {object} kvNamespace Binding KV (env.BREACH_CACHE)
  * @param {string} domain Nom de domaine normalisé
- * @param {object} data Données retournées par l'API de presse
+ * @param {object} data Données retournées par l'API de presse / brèches
  * @returns {Promise<boolean>}
  */
 export async function setCachedBreachData(kvNamespace, domain, data) {
@@ -46,7 +49,7 @@ export async function setCachedBreachData(kvNamespace, domain, data) {
     return false;
   }
 
-  const key = `domain:${domain.toLowerCase()}`;
+  const key = `bw:${CACHE_VERSION}:${domain.toLowerCase()}`;
   const payload = {
     ...data,
     cachedAt: new Date().toISOString()
@@ -62,4 +65,3 @@ export async function setCachedBreachData(kvNamespace, domain, data) {
     return false;
   }
 }
-
