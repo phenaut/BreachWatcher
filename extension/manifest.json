@@ -45,7 +45,7 @@
 
   "browser_specific_settings": {
     "gecko": {
-      "id": "breachwatcher@phenaut.dev",
+      "id": "breachwatcher-xpi@phenaut.dev",
       "strict_min_version": "109.0"
     }
   }
