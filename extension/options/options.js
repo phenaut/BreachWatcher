@@ -4,6 +4,9 @@ const cacheDaysInput = document.getElementById('cacheDays');
 const saveBtn = document.getElementById('saveBtn');
 const clearCacheBtn = document.getElementById('clearCacheBtn');
 const statusMessage = document.getElementById('statusMessage');
+const extensionVersion = document.getElementById('extensionVersion');
+
+extensionVersion.textContent = browser.runtime.getManifest().version;
 
 function showMessage(text, type = 'success') {
   statusMessage.textContent = text;

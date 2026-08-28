@@ -69,6 +69,37 @@ body {
   line-height: 1.5;
 }
 
+.extension-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 14px;
+  font-size: 13px;
+}
+
+.extension-details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.extension-details dt {
+  color: var(--text-secondary);
+}
+
+.extension-details dd {
+  text-align: right;
+}
+
+.extension-details a {
+  color: #60a5fa;
+}
+
+.extension-details a:hover {
+  color: #93c5fd;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
