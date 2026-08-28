@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Options - BreachWatcher</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <header class="header">
+      <span class="icon">🛡️</span>
+      <h1>Paramètres de BreachWatcher</h1>
+    </header>
+
+    <main class="content">
+      <div class="card">
+        <h2>Serveur Proxy Cloudflare</h2>
+        <p class="description">
+          URL du serveur proxy utilisé pour interroger l'API de presse sans exposer la clé API.
+        </p>
+        
+        <div class="form-group">
+          <label for="proxyUrl">URL du Worker Proxy :</label>
+          <input 
+            type="url" 
+            id="proxyUrl" 
+            placeholder="http://127.0.0.1:8787 ou https://breach-proxy.votre-compte.workers.dev" 
+            required
+          />
+          <span class="hint">Par défaut en local : http://127.0.0.1:8787</span>
+        </div>
+
+        <div class="actions">
+          <button id="testBtn" class="btn btn-secondary">Tester la connexion</button>
+          <button id="saveBtn" class="btn btn-primary">Enregistrer</button>
+        </div>
+
+        <div id="statusMessage" class="status-msg hidden"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
+

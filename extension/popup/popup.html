@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BreachWatcher</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="brand">
+        <span class="brand-icon">🛡️</span>
+        <h1 class="brand-title">BreachWatcher</h1>
+      </div>
+      <button id="refreshBtn" class="icon-btn" title="Rafraîchir l'analyse">
+        🔄
+      </button>
+    </header>
+
+    <div class="domain-banner">
+      <span class="label">Domaine analysé :</span>
+      <span id="currentDomain" class="domain-name">Chargement...</span>
+    </div>
+
+    <main id="content" class="content">
+      <!-- État de chargement -->
+      <div id="loadingState" class="state-panel">
+        <div class="spinner"></div>
+        <p>Vérification des données de sécurité...</p>
+      </div>
+
+      <!-- État : Site sain / Aucun signalement -->
+      <div id="safeState" class="state-panel hidden">
+        <div class="status-badge safe">
+          <span class="status-icon">✓</span>
+          <h2>Aucun incident répertorié</h2>
+        </div>
+        <p class="status-desc">
+          Aucun article de presse récent ou rapport de fuite de données n'a été trouvé pour ce site.
+        </p>
+      </div>
+
+      <!-- État : Incidents / Piratages signalés -->
+      <div id="dangerState" class="state-panel hidden">
+        <div class="status-badge danger">
+          <span class="status-icon">⚠️</span>
+          <h2>Piratages signalés (<span id="incidentCount">0</span>)</h2>
+        </div>
+        <p class="status-desc">
+          Des articles font état d'incidents ou de compromissions liées à ce domaine.
+        </p>
+        <div class="articles-list-container">
+          <h3 class="section-title">Articles de presse associés :</h3>
+          <ul id="articlesList" class="articles-list"></ul>
+        </div>
+      </div>
+
+      <!-- État : Page non vérifiable -->
+      <div id="unsupportedState" class="state-panel hidden">
+        <div class="status-badge neutral">
+          <span class="status-icon">ℹ️</span>
+          <h2>Page non vérifiable</h2>
+        </div>
+        <p class="status-desc">
+          BreachWatcher ne vérifie que les sites web standards accessibles via HTTP/HTTPS.
+        </p>
+      </div>
+
+      <!-- État d'erreur -->
+      <div id="errorState" class="state-panel hidden">
+        <div class="status-badge error">
+          <span class="status-icon">❌</span>
+          <h2>Erreur de communication</h2>
+        </div>
+        <p id="errorMessage" class="status-desc">
+          Impossible de joindre le serveur proxy.
+        </p>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <span id="cacheNotice" class="cache-info"></span>
+      <a href="#" id="optionsLink" class="footer-link">⚙️ Réglages</a>
+    </footer>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
+
