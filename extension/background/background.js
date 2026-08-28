@@ -281,23 +281,57 @@ async function fetchHIBPBreaches(domain) {
   }
 }
 
+// Mots-clés de sécurité qui doivent apparaître dans le titre d'un article RSS
+// pour qu'il soit considéré comme un signal d'incident réel
+var SECURITY_KEYWORDS = ['cyberattaque', 'fuite de données', 'piratage', 'cyberattack', 'data breach', 'hack'];
+
+/**
+ * Vérifie si un titre d'article contient le brand ET au moins un mot-clé sécurité.
+ * @param {string} title
+ * @param {string} brand
+ * @returns {boolean}
+ */
+function isRelevantSecurityArticle(title, brand) {
+  if (!title || !brand) return false;
+  var t = title.toLowerCase();
+
+  // Normalisation des accents pour la comparaison (é → e, etc.)
+  var normalize = function(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  };
+  var tNorm = normalize(title);
+  var brandNorm = normalize(brand);
+
+  // 1. Le brand doit apparaître dans le titre
+  if (!tNorm.includes(brandNorm)) return false;
+
+  // 2. Au moins un mot-clé de sécurité doit apparaître dans le titre
+  for (var i = 0; i < SECURITY_KEYWORDS.length; i++) {
+    if (tNorm.includes(normalize(SECURITY_KEYWORDS[i]))) return true;
+  }
+  return false;
+}
+
 async function analyzeDomain(domain) {
-  const norm = domain.toLowerCase();
-  const brand = extractBrandName(norm);
+  var norm = domain.toLowerCase();
+  var brand = extractBrandName(norm);
 
-  const [hibpBreaches, newsArticles] = await Promise.all([
-    fetchHIBPBreaches(norm),
-    fetchPublicCyberNews(norm, brand)
-  ]);
+  // Étape 1 : Brèches vérifiées (HIBP + base embarquée) — en parallèle avec le RSS
+  var hibpPromise = fetchHIBPBreaches(norm);
 
-  const allBreaches = [...hibpBreaches];
-  const allArticles = [...newsArticles];
+  // Étape 2 : Google News — toujours interrogé si brand suffisamment distinctif (≥ 4 chars)
+  var newsPromise = (brand && brand.length >= 4)
+    ? fetchPublicCyberNews(norm, brand)
+    : Promise.resolve([]);
+
+  var hibpBreaches = await hibpPromise;
+  var allBreaches = [].concat(hibpBreaches);
 
   if (KNOWN_BREACHES[norm]) {
-    const known = KNOWN_BREACHES[norm];
-    const alreadyPresent = allBreaches.some(
-      (b) => b.breachDate && b.breachDate.slice(0, 4) === known.breachDate.slice(0, 4)
-    );
+    var known = KNOWN_BREACHES[norm];
+    var alreadyPresent = allBreaches.some(function(b) {
+      return b.breachDate && b.breachDate.slice(0, 4) === known.breachDate.slice(0, 4);
+    });
     if (!alreadyPresent) {
       allBreaches.unshift({
         title: known.title,
@@ -309,23 +343,40 @@ async function analyzeDomain(domain) {
         isVerified: true
       });
     }
-    if (known.articles) {
-      for (const art of known.articles) {
-        if (!allArticles.some((a) => a.title === art.title)) {
-          allArticles.push(art);
-        }
+  }
+
+  // Étape 3 : Filtrage strict des articles RSS
+  // Un article n'est retenu QUE si : brand dans le titre ET mot-clé sécurité dans le titre
+  var rawArticles = await newsPromise;
+  var qualifiedArticles = rawArticles.filter(function(art) {
+    return isRelevantSecurityArticle(art.title, brand);
+  });
+
+  // Intégration des articles de la base embarquée (toujours fiables, pas de filtre)
+  var allArticles = [].concat(qualifiedArticles);
+  if (KNOWN_BREACHES[norm] && KNOWN_BREACHES[norm].articles) {
+    var knownArts = KNOWN_BREACHES[norm].articles;
+    for (var i = 0; i < knownArts.length; i++) {
+      if (!allArticles.some(function(a) { return a.title === knownArts[i].title; })) {
+        allArticles.push(knownArts[i]);
       }
     }
   }
 
-  const count = allBreaches.length + allArticles.length;
+  // hasBreach = brèches vérifiées OU articles qualifiés (brand + mot-clé sécurité dans le titre)
+  var verifiedCount = allBreaches.length;
+  var qualifiedNewsCount = qualifiedArticles.length;
+  var hasBreach = verifiedCount > 0 || qualifiedNewsCount > 0;
+  var totalCount = verifiedCount + qualifiedNewsCount;
+
   return {
     domain: norm,
     brand: brand,
-    hasBreach: count > 0,
-    count: count,
-    breachCount: allBreaches.length,
+    hasBreach: hasBreach,
+    count: totalCount,
+    breachCount: verifiedCount,
     newsCount: allArticles.length,
+    qualifiedNewsCount: qualifiedNewsCount,
     breaches: allBreaches,
     articles: allArticles,
     analyzedAt: new Date().toISOString()
