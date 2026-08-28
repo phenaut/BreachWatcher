@@ -1,8 +1,8 @@
-const DEFAULT_PROXY_URL = 'http://127.0.0.1:8787';
+const DEFAULT_CACHE_DAYS = 7;
 
-const proxyUrlInput = document.getElementById('proxyUrl');
+const cacheDaysInput = document.getElementById('cacheDays');
 const saveBtn = document.getElementById('saveBtn');
-const testBtn = document.getElementById('testBtn');
+const clearCacheBtn = document.getElementById('clearCacheBtn');
 const statusMessage = document.getElementById('statusMessage');
 
 function showMessage(text, type = 'success') {
@@ -18,8 +18,8 @@ function showMessage(text, type = 'success') {
 // Charger les options sauvegardées
 async function loadOptions() {
   try {
-    const data = await browser.storage.sync.get({ proxyUrl: DEFAULT_PROXY_URL });
-    proxyUrlInput.value = data.proxyUrl || DEFAULT_PROXY_URL;
+    const data = await browser.storage.sync.get({ cacheDays: DEFAULT_CACHE_DAYS });
+    cacheDaysInput.value = data.cacheDays || DEFAULT_CACHE_DAYS;
   } catch (err) {
     console.error('Erreur chargement options:', err);
   }
@@ -27,50 +27,36 @@ async function loadOptions() {
 
 // Sauvegarder les options
 async function saveOptions() {
-  let url = proxyUrlInput.value.trim();
-  if (!url) {
-    url = DEFAULT_PROXY_URL;
-    proxyUrlInput.value = url;
-  }
-
-  // Nettoyage du slash final
-  url = url.replace(/\/+$/, '');
+  const days = parseInt(cacheDaysInput.value, 10) || DEFAULT_CACHE_DAYS;
 
   try {
-    await browser.storage.sync.set({ proxyUrl: url });
-    showMessage('Paramètres enregistrés avec succès !', 'success');
+    await browser.storage.sync.set({ cacheDays: days });
+    showMessage(`Préférences enregistrées ! Cache fixé à ${days} jours.`, 'success');
   } catch (err) {
     showMessage(`Erreur lors de l'enregistrement : ${err.message}`, 'error');
   }
 }
 
-// Tester la connexion au proxy
-async function testConnection() {
-  const url = (proxyUrlInput.value.trim() || DEFAULT_PROXY_URL).replace(/\/+$/, '');
-  testBtn.disabled = true;
-  testBtn.textContent = 'Test en cours...';
+// Vider le cache local
+async function clearCache() {
+  clearCacheBtn.disabled = true;
+  clearCacheBtn.textContent = 'Nettoyage...';
 
   try {
-    const response = await fetch(`${url}/health`, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      showMessage(`Connexion réussie ! (Statut Worker : ${data.status || 'OK'})`, 'success');
+    const response = await browser.runtime.sendMessage({ action: 'clearCache' });
+    if (response && response.success) {
+      showMessage(`Cache local vidé avec succès (${response.clearedCount} domaine(s) purgé(s)) !`, 'success');
     } else {
-      showMessage(`Le serveur a répondu avec le code : ${response.status}`, 'error');
+      showMessage('Cache local réinitialisé.', 'success');
     }
   } catch (err) {
-    showMessage(`Impossible de joindre le proxy (${url}) : ${err.message}`, 'error');
+    showMessage(`Erreur lors du vidage du cache : ${err.message}`, 'error');
   } finally {
-    testBtn.disabled = false;
-    testBtn.textContent = 'Tester la connexion';
+    clearCacheBtn.disabled = false;
+    clearCacheBtn.textContent = 'Vider le cache local';
   }
 }
 
 saveBtn.addEventListener('click', saveOptions);
-testBtn.addEventListener('click', testConnection);
+clearCacheBtn.addEventListener('click', clearCache);
 document.addEventListener('DOMContentLoaded', loadOptions);
-

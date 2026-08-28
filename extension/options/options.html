@@ -15,28 +15,37 @@
 
     <main class="content">
       <div class="card">
-        <h2>Serveur Proxy Cloudflare</h2>
+        <h2>Gestion du Cache Local</h2>
         <p class="description">
-          URL du serveur proxy utilisé pour interroger l'API de presse sans exposer la clé API.
+          Pour préserver la fluidité de navigation et éviter les requêtes réseau répétitives, les résultats d'analyse sont mis en cache localement dans votre navigateur.
         </p>
         
         <div class="form-group">
-          <label for="proxyUrl">URL du Worker Proxy :</label>
+          <label for="cacheDays">Durée de validité du cache (en jours) :</label>
           <input 
-            type="url" 
-            id="proxyUrl" 
-            placeholder="http://127.0.0.1:8787 ou https://breach-proxy.votre-compte.workers.dev" 
+            type="number" 
+            id="cacheDays" 
+            min="1" 
+            max="30" 
+            value="7" 
             required
           />
-          <span class="hint">Par défaut en local : http://127.0.0.1:8787</span>
+          <span class="hint">Par défaut : 7 jours</span>
         </div>
 
         <div class="actions">
-          <button id="testBtn" class="btn btn-secondary">Tester la connexion</button>
+          <button id="clearCacheBtn" class="btn btn-secondary">Vider le cache local</button>
           <button id="saveBtn" class="btn btn-primary">Enregistrer</button>
         </div>
 
         <div id="statusMessage" class="status-msg hidden"></div>
+      </div>
+
+      <div class="card info-card">
+        <h2>À propos de l'extension</h2>
+        <p class="description">
+          BreachWatcher est une extension 100% autonome. Elle interroge directement la base de données publique <strong>Have I Been Pwned</strong>, les flux d'actualités récents et une base de référence intégrée sans passer par un serveur intermédiaire.
+        </p>
       </div>
     </main>
   </div>
@@ -44,4 +53,3 @@
   <script src="options.js"></script>
 </body>
 </html>
-

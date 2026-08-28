@@ -1,7 +1,0 @@
-# Exemple de variables secrètes pour le développement local avec `wrangler dev`
-# Copiez ce fichier vers `.dev.vars` et renseignez vos véritables identifiants :
-
-NEWS_API_KEY="votre_cle_api_secrete_ici"
-# Optionnel : Clé secrète partagée si vous souhaitez restreindre l'accès au proxy
-# PROXY_AUTH_TOKEN="cle_secrete_optionnelle"
-

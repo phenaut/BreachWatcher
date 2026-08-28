@@ -82,3 +82,13 @@ export function extractMainDomain(urlString) {
   }
 }
 
+/**
+ * Extrait le nom de la marque ou entreprise depuis le domaine (ex: cdiscount.com -> cdiscount)
+ * @param {string} domain
+ * @returns {string}
+ */
+export function extractBrandName(domain) {
+  if (!domain) return '';
+  const clean = domain.replace(/^www\./, '');
+  return clean.split('.')[0];
+}
