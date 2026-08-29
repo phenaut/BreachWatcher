@@ -182,6 +182,28 @@ const KNOWN_BREACHES = {
 // MODULE : utils/news-parser.js
 // ─────────────────────────────────────────────────────────────
 
+function decodeHtmlEntities(str) {
+  if (!str) return '';
+  let prev;
+  let decoded = str;
+  for (let i = 0; i < 3; i++) {
+    prev = decoded;
+    decoded = decoded
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&#039;/g, "'")
+      .replace(/&#39;/g, "'")
+      .replace(/&039;/g, "'")
+      .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
+      .replace(/&#x([0-9a-f]+);/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
+    if (decoded === prev) break;
+  }
+  return decoded;
+}
+
 function parseArticleTitleAndSource(rawTitle) {
   if (!rawTitle) return { title: '', source: 'Presse' };
   const lastDash = rawTitle.lastIndexOf(' - ');
@@ -234,10 +256,10 @@ async function fetchPublicCyberNews(domain, brand) {
         const sourceMatch = /<source[^>]*>([\s\S]*?)<\/source>/i.exec(itemContent);
 
         if (titleMatch) {
-          const rawTitle = titleMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
+          const rawTitle = decodeHtmlEntities(titleMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim());
           const url = linkMatch ? linkMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '#';
           const pubDate = pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString();
-          const explicitSource = sourceMatch ? sourceMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
+          const explicitSource = sourceMatch ? decodeHtmlEntities(sourceMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim()) : '';
           const parsed = parseArticleTitleAndSource(rawTitle);
           articles.push({
             title: parsed.title,
@@ -473,9 +495,9 @@ async function fetchFrenchBreaches(domain) {
       const descMatch = /<description[^>]*>([\s\S]*?)<\/description>/i.exec(itemContent);
       const contentMatch = /<content:encoded>([\s\S]*?)<\/content:encoded>/i.exec(itemContent);
 
-      const rawTitle = titleMatch ? titleMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
-      const rawDesc = descMatch ? descMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').trim() : '';
-      const rawContent = contentMatch ? contentMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').trim() : '';
+      const rawTitle = titleMatch ? decodeHtmlEntities(titleMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim()) : '';
+      const rawDesc = descMatch ? decodeHtmlEntities(descMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').trim()) : '';
+      const rawContent = contentMatch ? decodeHtmlEntities(contentMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').trim()) : '';
       
       const normalizedTitle = rawTitle.toLowerCase();
       const normalizedLink = linkText.toLowerCase();
@@ -506,7 +528,7 @@ async function fetchFrenchBreaches(domain) {
         const rawCat = catMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
         if (rawCat) {
           rawCat.split(',').forEach(c => {
-            const trimmed = c.trim();
+            const trimmed = decodeHtmlEntities(c.trim());
             if (trimmed) dataClasses.push(trimmed);
           });
         }
