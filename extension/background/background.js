@@ -198,12 +198,14 @@ async function fetchPublicCyberNews(domain, brand) {
   if (!domain && !brand) return [];
 
   const queryVariants = [
-    `${brand || domain} (pirat OR "fuite de données" OR cyberattaque OR "data breach")`,
+    `${brand || domain} pirat`,
+    `${brand || domain} fuite de données`,
     `${brand || domain} sécurité données`,
     `${brand || domain} cyberattaque`,
     `${brand || domain} clients données`,
     `${brand || domain} data breach`,
     `${brand || domain} cyber`,
+    `${brand || domain} faille`,
     `${brand || domain}`
   ];
 
@@ -371,6 +373,112 @@ async function fetchHIBPBreaches(domain) {
   }
 }
 
+async function fetchFrenchBreaches(domain) {
+  if (!domain) return [];
+
+  const domainLower = String(domain).toLowerCase();
+  const brand = extractBrandName(domainLower);
+
+  try {
+    const response = await fetch('https://frenchbreaches.com/feed.xml', {
+      signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined,
+      headers: {
+        'Accept': 'application/rss+xml, application/xml, text/xml; q=0.9, */*; q=0.8'
+      }
+    });
+
+    if (!response.ok) return [];
+
+    const xmlText = await response.text();
+    const itemRegex = /<(?:item|entry)[\s>]([\s\S]*?)<\/(?:item|entry)>/gi;
+    const breaches = [];
+    let match;
+
+    while ((match = itemRegex.exec(xmlText)) !== null) {
+      const itemContent = match[1];
+      
+      const titleMatch = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(itemContent);
+      
+      let linkText = '';
+      const linkMatchTag = /<link[^>]*>([\s\S]*?)<\/link>/i.exec(itemContent);
+      if (linkMatchTag && linkMatchTag[1].trim()) {
+        linkText = linkMatchTag[1];
+      } else {
+        const linkMatchAttr = /<link[^>]*href=["']([^"']+)["']/i.exec(itemContent);
+        if (linkMatchAttr) linkText = linkMatchAttr[1];
+      }
+      
+      const descMatch = /<description[^>]*>([\s\S]*?)<\/description>/i.exec(itemContent);
+      const contentMatch = /<content:encoded>([\s\S]*?)<\/content:encoded>/i.exec(itemContent);
+
+      const rawTitle = titleMatch ? titleMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
+      const rawDesc = descMatch ? descMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').trim() : '';
+      const rawContent = contentMatch ? contentMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').trim() : '';
+      
+      const normalizedTitle = rawTitle.toLowerCase();
+      const normalizedLink = linkText.toLowerCase();
+      const normalizedDesc = rawDesc.toLowerCase();
+      const normalizedContent = rawContent.toLowerCase();
+
+      const matchesDomain = normalizedTitle === domainLower
+        || normalizedTitle.includes(domainLower)
+        || (brand && normalizedTitle === brand)
+        || (brand && normalizedTitle.includes(brand))
+        || normalizedLink.includes(domainLower)
+        || (brand && normalizedLink.includes(brand))
+        || normalizedDesc.includes(domainLower)
+        || normalizedContent.includes(domainLower)
+        || (brand && normalizedDesc.includes(brand))
+        || (brand && normalizedContent.includes(brand));
+
+      if (!matchesDomain) continue;
+
+      const pubDateMatch = /<pubDate>([\s\S]*?)<\/pubDate>/i.exec(itemContent);
+      const updatedMatch = /<updated>([\s\S]*?)<\/updated>/i.exec(itemContent);
+      const dateStr = pubDateMatch ? pubDateMatch[1].trim() : (updatedMatch ? updatedMatch[1].trim() : new Date().toISOString());
+
+      let dataClasses = [];
+      const categoryRegex = /<category[^>]*>([\s\S]*?)<\/category>/gi;
+      let catMatch;
+      while ((catMatch = categoryRegex.exec(itemContent)) !== null) {
+        const rawCat = catMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
+        if (rawCat) {
+          rawCat.split(',').forEach(c => {
+            const trimmed = c.trim();
+            if (trimmed) dataClasses.push(trimmed);
+          });
+        }
+      }
+
+      const cleanSummary = (rawDesc || rawContent || 'Source de fuite répertoriée dans le flux FrenchBreaches.')
+        .replace(/#{1,6}\s?/g, '')
+        .replace(/\*{1,2}/g, '')
+        .replace(/_{1,2}/g, '')
+        .trim();
+
+      let finalTitle = rawTitle || 'Incident de sécurité détecté';
+      if (finalTitle.length < 10 && cleanSummary.includes(':')) {
+        finalTitle = cleanSummary.split(':')[0].trim();
+      }
+
+      breaches.push({
+        title: finalTitle,
+        breachDate: dateStr,
+        pwnCount: 0,
+        source: 'FrenchBreaches',
+        dataClasses: dataClasses,
+        summary: cleanSummary,
+        isVerified: true
+      });
+    }
+
+    return breaches.slice(0, 10);
+  } catch (err) {
+    console.debug('[BreachWatcher] Erreur FrenchBreaches:', err);
+    return [];
+  }
+}
+
 // Mots-clés de sécurité qui doivent apparaître dans le titre d'un article RSS
 // pour qu'il soit considéré comme un signal d'incident réel
 var SECURITY_KEYWORDS = [
@@ -410,8 +518,9 @@ async function analyzeDomain(domain) {
   var norm = domain.toLowerCase();
   var brand = extractBrandName(norm);
 
-  // Étape 1 : Brèches vérifiées (HIBP + base embarquée) — en parallèle avec le RSS
+  // Étape 1 : Brèches vérifiées (HIBP + FrenchBreaches + base embarquée) — en parallèle avec le RSS
   var hibpPromise = fetchHIBPBreaches(norm);
+  var frenchBreachesPromise = fetchFrenchBreaches(norm);
   var vtApiKey = await getVirusTotalApiKey();
   var vtPromise = vtApiKey ? fetchVirusTotalDomain(norm, vtApiKey) : Promise.resolve({
     enabled: false,
@@ -425,8 +534,9 @@ async function analyzeDomain(domain) {
     : Promise.resolve([]);
 
   var hibpBreaches = await hibpPromise;
+  var frenchBreaches = await frenchBreachesPromise;
   var virusTotal = await vtPromise;
-  var allBreaches = [].concat(hibpBreaches);
+  var allBreaches = [].concat(hibpBreaches, frenchBreaches);
 
   if (KNOWN_BREACHES[norm]) {
     var known = KNOWN_BREACHES[norm];

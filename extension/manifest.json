@@ -1,34 +1,30 @@
 {
   "manifest_version": 3,
   "name": "BreachWatcher",
-  "version": "1.0.4",
-  "description": "Avertit si le site visité a fait l'objet d'un piratage ou d'une fuite de données. Vérifie Have I Been Pwned et la presse. 100% autonome, cache local 7 jours, aucun serveur tiers.",
-
+  "version": "1.0.7",
+  "description": "vertit si le site visit\u00e9 a fait l'objet d'un piratage ou d'une fuite de donn\u00e9es. V\u00e9rifie Have I Been Pwned et la presse. 100% autonome, cache local 7 jours, aucun serveur tiers.",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-
   "permissions": [
     "webNavigation",
     "tabs",
     "storage"
   ],
-
   "host_permissions": [
     "https://haveibeenpwned.com/*",
-    "https://news.google.com/*"
+    "https://news.google.com/*",
+    "https://frenchbreaches.com/feed.xml",
+    "https://www.virustotal.com/api/v3"
   ],
-
   "content_security_policy": {
     "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://haveibeenpwned.com https://news.google.com;"
   },
-
   "background": {
     "scripts": ["browser-polyfill.js", "background/background.js"]
   },
-
   "action": {
     "default_title": "BreachWatcher",
     "default_icon": {
@@ -37,12 +33,10 @@
     },
     "default_popup": "popup/popup.html"
   },
-
   "options_ui": {
     "page": "options/options.html",
     "open_in_tab": false
   },
-
   "browser_specific_settings": {
     "gecko": {
       "id": "breachwatcher-xpi@phenaut.dev",
