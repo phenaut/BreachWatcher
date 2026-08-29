@@ -390,43 +390,91 @@ async function fetchFrenchBreaches(domain) {
     if (!response.ok) return [];
 
     const xmlText = await response.text();
-    const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+    const itemRegex = /<(?:item|entry)[\s>]([\s\S]*?)<\/(?:item|entry)>/gi;
     const breaches = [];
     let match;
 
     while ((match = itemRegex.exec(xmlText)) !== null) {
       const itemContent = match[1];
-      const titleMatch = /<title>([\s\S]*?)<\/title>/i.exec(itemContent);
-      const linkMatch = /<link>([\s\S]*?)<\/link>/i.exec(itemContent);
-      const pubDateMatch = /<pubDate>([\s\S]*?)<\/pubDate>/i.exec(itemContent);
+      
+      const titleMatch = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(itemContent);
+      
+      let linkText = '';
+      const linkMatchTag = /<link[^>]*>([\s\S]*?)<\/link>/i.exec(itemContent);
+      if (linkMatchTag && linkMatchTag[1].trim()) {
+        linkText = linkMatchTag[1];
+      } else {
+        const linkMatchAttr = /<link[^>]*href=["']([^"']+)["']/i.exec(itemContent);
+        if (linkMatchAttr) linkText = linkMatchAttr[1];
+      }
+      
+      const descMatch = /<description[^>]*>([\s\S]*?)<\/description>/i.exec(itemContent);
+      const contentMatch = /<content:encoded>([\s\S]*?)<\/content:encoded>/i.exec(itemContent);
 
-      if (!titleMatch) continue;
-
-      const rawTitle = titleMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
+      const rawTitle = titleMatch ? titleMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
+      const rawDesc = descMatch ? descMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').trim() : '';
+      const rawContent = contentMatch ? contentMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').trim() : '';
+      
       const normalizedTitle = rawTitle.toLowerCase();
-      const linkText = linkMatch ? linkMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
       const normalizedLink = linkText.toLowerCase();
+      const normalizedDesc = rawDesc.toLowerCase();
+      const normalizedContent = rawContent.toLowerCase();
 
-      const matchesDomain = normalizedTitle.includes(domainLower)
-        || normalizedTitle.includes(brand || '')
+      const matchesDomain = normalizedTitle === domainLower
+        || normalizedTitle.includes(domainLower)
+        || (brand && normalizedTitle === brand)
+        || (brand && normalizedTitle.includes(brand))
         || normalizedLink.includes(domainLower)
-        || normalizedLink.includes(brand || '');
+        || (brand && normalizedLink.includes(brand))
+        || normalizedDesc.includes(domainLower)
+        || normalizedContent.includes(domainLower)
+        || (brand && normalizedDesc.includes(brand))
+        || (brand && normalizedContent.includes(brand));
 
       if (!matchesDomain) continue;
 
+      const pubDateMatch = /<pubDate>([\s\S]*?)<\/pubDate>/i.exec(itemContent);
+      const updatedMatch = /<updated>([\s\S]*?)<\/updated>/i.exec(itemContent);
+      const dateStr = pubDateMatch ? pubDateMatch[1].trim() : (updatedMatch ? updatedMatch[1].trim() : new Date().toISOString());
+
+      let dataClasses = [];
+      const categoryRegex = /<category[^>]*>([\s\S]*?)<\/category>/gi;
+      let catMatch;
+      while ((catMatch = categoryRegex.exec(itemContent)) !== null) {
+        const rawCat = catMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
+        if (rawCat) {
+          rawCat.split(',').forEach(c => {
+            const trimmed = c.trim();
+            if (trimmed) dataClasses.push(trimmed);
+          });
+        }
+      }
+
+      const cleanSummary = (rawDesc || rawContent || 'Source de fuite répertoriée dans le flux FrenchBreaches.')
+        .replace(/#{1,6}\s?/g, '')
+        .replace(/\*{1,2}/g, '')
+        .replace(/_{1,2}/g, '')
+        .trim();
+
+      let finalTitle = rawTitle || 'Incident de sécurité détecté';
+      if (finalTitle.length < 10 && cleanSummary.includes(':')) {
+        finalTitle = cleanSummary.split(':')[0].trim();
+      }
+
       breaches.push({
-        title: rawTitle,
-        breachDate: pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString(),
+        title: finalTitle,
+        breachDate: dateStr,
         pwnCount: 0,
         source: 'FrenchBreaches',
-        dataClasses: [],
-        summary: 'Source de fuite répertoriée dans le flux FrenchBreaches.',
+        dataClasses: dataClasses,
+        summary: cleanSummary,
         isVerified: true
       });
     }
 
     return breaches.slice(0, 10);
-  } catch {
+  } catch (err) {
+    console.debug('[BreachWatcher] Erreur FrenchBreaches:', err);
     return [];
   }
 }
