@@ -47,23 +47,28 @@ function formatDuration(ms) {
   return `${(ms / 1000).toFixed(1)} s`;
 }
 
-function escapeHtml(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+function renderEmptyState(iconSymbol, messageText) {
+  const container = document.createElement('div');
+  container.className = 'empty-state';
+
+  const icon = document.createElement('span');
+  icon.className = 'empty-icon';
+  icon.textContent = iconSymbol;
+
+  const msg = document.createElement('p');
+  msg.textContent = messageText;
+
+  container.appendChild(icon);
+  container.appendChild(msg);
+
+  logsList.replaceChildren(container);
 }
 
 // ── Render ───────────────────────────────────────────────────
 
 function renderLogs(logs) {
   if (logs.length === 0) {
-    logsList.innerHTML = `
-      <div class="empty-state">
-        <span class="empty-icon">&#128203;</span>
-        <p>Aucune entrée ne correspond aux filtres sélectionnés.</p>
-      </div>`;
+    renderEmptyState('📋', 'Aucune entrée ne correspond aux filtres sélectionnés.');
     logCount.textContent = '0 entrée';
     return;
   }
@@ -72,77 +77,159 @@ function renderLogs(logs) {
 
   // Affichage du plus récent en premier
   const sorted = [...logs].reverse();
+  const fragment = document.createDocumentFragment();
 
-  logsList.innerHTML = sorted.map((entry, idx) => {
-    const breachesHtml = (Array.isArray(entry.breaches) && entry.breaches.length > 0)
-      ? `<div class="log-detail-section">
-           <div class="log-detail-label">Failles identifiées</div>
-           ${entry.breaches.map(b => `
-             <div class="breach-item">
-               <div class="breach-title">${escapeHtml(b.title)}</div>
-               <div class="breach-meta">${escapeHtml(b.source)}${b.breachDate ? ' · ' + escapeHtml(b.breachDate) : ''}</div>
-             </div>`).join('')}
-         </div>`
-      : '';
+  sorted.forEach((entry, idx) => {
+    const hasBreaches = Array.isArray(entry.breaches) && entry.breaches.length > 0;
+    const hasError = Boolean(entry.error);
+    const hasDetail = hasBreaches || hasError;
 
-    const errorHtml = entry.error
-      ? `<div class="log-detail-section">
-           <div class="log-detail-label">Erreur</div>
-           <div class="error-text">${escapeHtml(entry.error)}</div>
-         </div>`
-      : '';
+    // Conteneur principal
+    const logEntry = document.createElement('div');
+    logEntry.className = 'log-entry';
+    logEntry.dataset.idx = idx;
 
-    const hasDetail = breachesHtml || errorHtml;
+    // Ligne principale
+    const logRow = document.createElement('div');
+    logRow.className = 'log-row';
 
-    return `
-      <div class="log-entry" data-idx="${idx}">
-        <div class="log-row" ${hasDetail ? 'role="button" tabindex="0" aria-controls="detail-' + idx + '"' : ''}>
-          <span class="col-date">${escapeHtml(formatDate(entry.ts))}</span>
-          <span class="col-domain" title="${escapeHtml(entry.domain)}">${escapeHtml(entry.domain)}</span>
-          <span class="col-source ${sourceClass(entry.source)}">${escapeHtml(entry.source)}</span>
-          <span class="col-status"><span class="badge ${badgeClass(entry.status)}">${escapeHtml(entry.status)}</span></span>
-          <span class="col-count">${entry.count > 0 ? entry.count : '—'}</span>
-          <span class="col-duration">${escapeHtml(formatDuration(entry.durationMs))}</span>
-          <span class="col-toggle">
-            ${hasDetail
-              ? `<button class="log-toggle" aria-expanded="false" aria-controls="detail-${idx}" title="Afficher le détail">&#9654;</button>`
-              : ''}
-          </span>
-        </div>
-        ${hasDetail
-          ? `<div class="log-detail hidden" id="detail-${idx}">${breachesHtml}${errorHtml}</div>`
-          : ''}
-      </div>`;
-  }).join('');
+    if (hasDetail) {
+      logRow.setAttribute('role', 'button');
+      logRow.setAttribute('tabindex', '0');
+      logRow.setAttribute('aria-controls', `detail-${idx}`);
+    }
 
-  // Toggle detail panels
-  logsList.querySelectorAll('.log-toggle').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      const detailId = btn.getAttribute('aria-controls');
-      const detail = document.getElementById(detailId);
-      if (!detail) return;
-      const expanded = btn.getAttribute('aria-expanded') === 'true';
-      btn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-      detail.classList.toggle('hidden', expanded);
-    });
-  });
+    // Colonnes
+    const colDate = document.createElement('span');
+    colDate.className = 'col-date';
+    colDate.textContent = formatDate(entry.ts);
 
-  // Allow clicking entire row to toggle
-  logsList.querySelectorAll('.log-row[role="button"]').forEach(row => {
-    row.addEventListener('click', function(e) {
-      if (e.target.classList.contains('log-toggle')) return;
-      const btn = row.querySelector('.log-toggle');
-      if (btn) btn.click();
-    });
-    row.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        const btn = row.querySelector('.log-toggle');
-        if (btn) btn.click();
+    const colDomain = document.createElement('span');
+    colDomain.className = 'col-domain';
+    colDomain.title = entry.domain || '';
+    colDomain.textContent = entry.domain || '';
+
+    const colSource = document.createElement('span');
+    const sClass = sourceClass(entry.source);
+    colSource.className = sClass ? `col-source ${sClass}` : 'col-source';
+    colSource.textContent = entry.source || '';
+
+    const colStatus = document.createElement('span');
+    colStatus.className = 'col-status';
+    const badge = document.createElement('span');
+    badge.className = `badge ${badgeClass(entry.status)}`;
+    badge.textContent = entry.status || '';
+    colStatus.appendChild(badge);
+
+    const colCount = document.createElement('span');
+    colCount.className = 'col-count';
+    colCount.textContent = entry.count > 0 ? entry.count : '—';
+
+    const colDuration = document.createElement('span');
+    colDuration.className = 'col-duration';
+    colDuration.textContent = formatDuration(entry.durationMs);
+
+    const colToggle = document.createElement('span');
+    colToggle.className = 'col-toggle';
+
+    let toggleBtn = null;
+    if (hasDetail) {
+      toggleBtn = document.createElement('button');
+      toggleBtn.className = 'log-toggle';
+      toggleBtn.setAttribute('aria-expanded', 'false');
+      toggleBtn.setAttribute('aria-controls', `detail-${idx}`);
+      toggleBtn.title = 'Afficher le détail';
+      toggleBtn.textContent = '▶';
+      colToggle.appendChild(toggleBtn);
+    }
+
+    logRow.append(colDate, colDomain, colSource, colStatus, colCount, colDuration, colToggle);
+    logEntry.appendChild(logRow);
+
+    // Section Détail
+    if (hasDetail) {
+      const logDetail = document.createElement('div');
+      logDetail.className = 'log-detail hidden';
+      logDetail.id = `detail-${idx}`;
+
+      if (hasBreaches) {
+        const breachSection = document.createElement('div');
+        breachSection.className = 'log-detail-section';
+
+        const label = document.createElement('div');
+        label.className = 'log-detail-label';
+        label.textContent = 'Failles identifiées';
+        breachSection.appendChild(label);
+
+        entry.breaches.forEach(b => {
+          const item = document.createElement('div');
+          item.className = 'breach-item';
+
+          const title = document.createElement('div');
+          title.className = 'breach-title';
+          title.textContent = b.title || '';
+
+          const meta = document.createElement('div');
+          meta.className = 'breach-meta';
+          meta.textContent = `${b.source || ''}${b.breachDate ? ' · ' + b.breachDate : ''}`;
+
+          item.append(title, meta);
+          breachSection.appendChild(item);
+        });
+
+        logDetail.appendChild(breachSection);
       }
-    });
+
+      if (hasError) {
+        const errorSection = document.createElement('div');
+        errorSection.className = 'log-detail-section';
+
+        const label = document.createElement('div');
+        label.className = 'log-detail-label';
+        label.textContent = 'Erreur';
+
+        const errorText = document.createElement('div');
+        errorText.className = 'error-text';
+        errorText.textContent = entry.error;
+
+        errorSection.append(label, errorText);
+        logDetail.appendChild(errorSection);
+      }
+
+      logEntry.appendChild(logDetail);
+
+      // Listeners pour l'ouverture/fermeture du panneau
+      const toggleAction = () => {
+        if (!toggleBtn) return;
+        const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+        toggleBtn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        logDetail.classList.toggle('hidden', expanded);
+      };
+
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleAction();
+        });
+      }
+
+      logRow.addEventListener('click', (e) => {
+        if (e.target.classList.contains('log-toggle')) return;
+        toggleAction();
+      });
+
+      logRow.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleAction();
+        }
+      });
+    }
+
+    fragment.appendChild(logEntry);
   });
+
+  logsList.replaceChildren(fragment);
 }
 
 function applyFilters() {
@@ -163,11 +250,7 @@ function applyFilters() {
 // ── Load logs ────────────────────────────────────────────────
 
 async function loadLogs() {
-  logsList.innerHTML = `
-    <div class="empty-state">
-      <span class="empty-icon">&#8987;</span>
-      <p>Chargement&#8230;</p>
-    </div>`;
+  renderEmptyState('⏳', 'Chargement…');
   logCount.textContent = '—';
 
   try {
@@ -179,11 +262,7 @@ async function loadLogs() {
       throw new Error((response && response.error) || 'Réponse inattendue');
     }
   } catch (err) {
-    logsList.innerHTML = `
-      <div class="empty-state">
-        <span class="empty-icon">&#9888;</span>
-        <p>Impossible de charger le journal : ${escapeHtml(err.message)}</p>
-      </div>`;
+    renderEmptyState('⚠️', `Impossible de charger le journal : ${err.message}`);
     logCount.textContent = 'Erreur';
   }
 }
