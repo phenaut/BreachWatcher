@@ -33,6 +33,22 @@
           <span class="hint">Par défaut : 7 jours</span>
         </div>
 
+        <div class="form-group">
+          <label for="virustotalApiKey">Clé publique VirusTotal (optionnelle) :</label>
+          <input
+            type="password"
+            id="virustotalApiKey"
+            placeholder="Saisissez votre clé publique VT"
+            autocomplete="off"
+          />
+          <div class="vt-help">
+            <span class="hint">Pour la générer :</span>
+            <a href="https://www.virustotal.com/gui/my-apikey" target="_blank" rel="noopener noreferrer">Créer ma clé API publique VirusTotal</a>
+            <a href="https://docs.virustotal.com/reference/public-vs-premium-api" target="_blank" rel="noopener noreferrer">Documentation API publique</a>
+          </div>
+          <span class="hint">Utilisée pour afficher un score de réputation VirusTotal dans la popup.</span>
+        </div>
+
         <div class="actions">
           <button id="clearCacheBtn" class="btn btn-secondary">Vider le cache local</button>
           <button id="saveBtn" class="btn btn-primary">Enregistrer</button>
@@ -64,6 +80,7 @@
     </main>
   </div>
 
+  <script src="../browser-polyfill.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

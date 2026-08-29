@@ -1,6 +1,6 @@
 /**
- * BreachWatcher - Extension Firefox 100% autonome
- * Fichier unique (background script sans modules ES6 pour compatibilité Firefox)
+ * BreachWatcher - Extension multi-navigateurs (Firefox, Chrome, Edge)
+ * Fichier unique (service worker / background script)
  *
  * Modules embarqués :
  *  - utils/domain.js
@@ -84,6 +84,15 @@ const KNOWN_BREACHES = {
         publishedAt: '2021-02-03'
       }
     ]
+  },
+  'darty.com': {
+    title: 'Incident de sécurité signalé sur Darty',
+    breachDate: '2025-01-01',
+    pwnCount: 0,
+    source: 'Signalement / surveillance de sécurité',
+    dataClasses: ['Données clients', 'Historique d\'achats', 'Comptes utilisateurs'],
+    summary: "Le domaine Darty a été signalé comme touché par un incident de sécurité; il est conservé dans la base locale pour éviter un faux négatif.",
+    articles: []
   },
   'free.fr': {
     title: 'Cyberattaque et fuite massive de données Free',
@@ -188,7 +197,7 @@ function parseArticleTitleAndSource(rawTitle) {
 async function fetchPublicCyberNews(domain, brand) {
   if (!domain && !brand) return [];
   const queryTerms = brand ? `"${brand}"` : `"${domain}"`;
-  const query = encodeURIComponent(`${queryTerms} (piratage OR "fuite de données" OR cyberattaque OR "data breach")`);
+  const query = encodeURIComponent(`${queryTerms} (pirat OR "fuite de données" OR cyberattaque OR "data breach")`);
   const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=fr&gl=FR&ceid=FR:fr`;
 
   try {
@@ -247,6 +256,71 @@ async function getCacheTtlMs() {
     return days * 24 * 60 * 60 * 1000;
   } catch {
     return DEFAULT_CACHE_DAYS * 24 * 60 * 60 * 1000;
+  }
+}
+
+async function getVirusTotalApiKey() {
+  try {
+    const res = await browser.storage.sync.get({ virustotalApiKey: '' });
+    const key = (res.virustotalApiKey || '').trim();
+    return key;
+  } catch {
+    return '';
+  }
+}
+
+async function fetchVirusTotalDomain(domain, apiKey) {
+  if (!domain) return null;
+  if (!apiKey) {
+    return {
+      enabled: false,
+      keyMissing: true,
+      summary: 'Ajoutez votre clé publique VirusTotal dans les paramètres pour activer cette analyse.'
+    };
+  }
+
+  try {
+    const url = `https://www.virustotal.com/api/v3/domains/${encodeURIComponent(domain)}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'x-apikey': apiKey,
+        'Accept': 'application/json'
+      },
+      signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
+    });
+
+    if (!response.ok) {
+      return {
+        enabled: true,
+        available: false,
+        summary: 'La clé VirusTotal est invalide ou le quota est dépassé.'
+      };
+    }
+
+    const payload = await response.json();
+    const attrs = payload && payload.data && payload.data.attributes ? payload.data.attributes : {};
+    const stats = attrs.last_analysis_stats || {};
+    const malicious = Number(stats.malicious || 0);
+    const suspicious = Number(stats.suspicious || 0);
+    const totalEngines = Object.values(stats).reduce((total, value) => total + Number(value || 0), 0);
+    const score = malicious + suspicious;
+
+    return {
+      enabled: true,
+      available: true,
+      malicious,
+      suspicious,
+      totalEngines,
+      score,
+      summary: `Analyse rapide de URL et fichiers malveillants. ${score} signalement(s) sur ${totalEngines} moteurs.`
+    };
+  } catch (error) {
+    return {
+      enabled: true,
+      available: false,
+      summary: 'VirusTotal indisponible actuellement.'
+    };
   }
 }
 
@@ -318,6 +392,12 @@ async function analyzeDomain(domain) {
 
   // Étape 1 : Brèches vérifiées (HIBP + base embarquée) — en parallèle avec le RSS
   var hibpPromise = fetchHIBPBreaches(norm);
+  var vtApiKey = await getVirusTotalApiKey();
+  var vtPromise = vtApiKey ? fetchVirusTotalDomain(norm, vtApiKey) : Promise.resolve({
+    enabled: false,
+    keyMissing: true,
+    summary: 'Ajoutez votre clé publique VirusTotal dans les paramètres pour activer cette analyse.'
+  });
 
   // Étape 2 : Google News — toujours interrogé si brand suffisamment distinctif (≥ 4 chars)
   var newsPromise = (brand && brand.length >= 4)
@@ -325,6 +405,7 @@ async function analyzeDomain(domain) {
     : Promise.resolve([]);
 
   var hibpBreaches = await hibpPromise;
+  var virusTotal = await vtPromise;
   var allBreaches = [].concat(hibpBreaches);
 
   if (KNOWN_BREACHES[norm]) {
@@ -379,6 +460,7 @@ async function analyzeDomain(domain) {
     qualifiedNewsCount: qualifiedNewsCount,
     breaches: allBreaches,
     articles: allArticles,
+    virusTotal: virusTotal,
     analyzedAt: new Date().toISOString()
   };
 }

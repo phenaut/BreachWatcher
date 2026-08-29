@@ -197,6 +197,76 @@ body {
   margin-top: 10px;
 }
 
+.virus-total-box {
+  background: linear-gradient(180deg, rgba(37, 41, 52, 0.9), rgba(22, 25, 34, 0.9));
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.vt-title {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.vt-score-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vt-meter {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vt-score-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2ecc71 0%, #f39c12 50%, #e74c3c 100%);
+}
+
+.vt-score {
+  font-size: 11px;
+  color: var(--text-primary);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.vt-divider {
+  color: var(--text-secondary);
+  margin: 0 2px;
+}
+
+.vt-threat-level {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.vt-summary {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
 .section-title {
   font-size: 11px;
   color: var(--text-secondary);
