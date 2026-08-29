@@ -198,12 +198,14 @@ async function fetchPublicCyberNews(domain, brand) {
   if (!domain && !brand) return [];
 
   const queryVariants = [
-    `${brand || domain} (pirat OR "fuite de données" OR cyberattaque OR "data breach")`,
+    `${brand || domain} pirat`,
+    `${brand || domain} fuite de données`,
     `${brand || domain} sécurité données`,
     `${brand || domain} cyberattaque`,
     `${brand || domain} clients données`,
     `${brand || domain} data breach`,
     `${brand || domain} cyber`,
+    `${brand || domain} faille`,
     `${brand || domain}`
   ];
 
