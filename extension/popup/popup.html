@@ -30,7 +30,7 @@
         <p>Vérification des données de sécurité...</p>
       </div>
 
-      <!-- État : Site sain / Aucun signalement -->
+      <!-- État : Site sain / Aucun incident -->
       <div id="safeState" class="state-panel hidden">
         <div class="status-badge safe">
           <span class="status-icon">✓</span>
@@ -39,8 +39,6 @@
         <p class="status-desc">
           Aucun article de presse récent ou rapport de fuite de données n'a été trouvé pour ce site.
         </p>
-
-        <div id="safeChecksList" class="section-container"></div>
       </div>
 
       <!-- État : Incidents / Piratages signalés -->
@@ -52,14 +50,16 @@
         <p class="status-desc" id="dangerSummary">
           Des incidents ou des compromissions ont été documentés pour ce site.
         </p>
-
-        <!-- Section des brèches historiques / répertoriées -->
-        <div id="breachesSection" class="section-container hidden">
-          <h3 class="section-title">🛡️ Fuites & Incidents répertoriés :</h3>
-          <ul id="breachesList" class="items-list"></ul>
-        </div>
       </div>
 
+      <!-- BLOC 1 : Faille référencée -->
+      <div id="breachesSection" class="section-container hidden">
+        <h3 class="section-title">🛡️ Faille référencée</h3>
+        <div id="breachesPlaceholder" class="safe-check-item">Aucune fuite référencée détectée</div>
+        <ul id="breachesList" class="items-list hidden"></ul>
+      </div>
+
+      <!-- BLOC 2 : VirusTotal -->
       <div id="virusTotalSection" class="section-container hidden">
         <h3 class="section-title">🧪 VirusTotal</h3>
         <div class="virus-total-box">
@@ -78,14 +78,15 @@
             </div>
           </div>
           <div id="vtThreatLevel" class="vt-threat-level">Niveau de menace</div>
-          <p id="vtSummary" class="vt-summary">Analyse rapide de URL et fichiers malveillants.</p>
+          <p id="vtSummary" class="vt-summary hidden">Analyse rapide de URL et fichiers malveillants.</p>
         </div>
       </div>
 
-      <!-- Section des articles de presse -->
+      <!-- BLOC 3 : Articles de presse -->
       <div id="articlesSection" class="section-container hidden">
-        <h3 class="section-title">📰 Articles de presse associés :</h3>
-        <ul id="articlesList" class="items-list"></ul>
+        <h3 class="section-title">📰 Articles de presse</h3>
+        <div id="articlesPlaceholder" class="safe-check-item">Aucun article de presse associé détecté</div>
+        <ul id="articlesList" class="items-list hidden"></ul>
       </div>
 
       <!-- État : Page non vérifiable -->

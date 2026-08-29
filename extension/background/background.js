@@ -430,7 +430,7 @@ async function fetchVirusTotalDomain(domain, apiKey) {
       malicious,
       suspicious,
       totalEngines,
-      summary: score > 0 ? `Analyse rapide de URL et fichiers malveillants. ${score} signalement(s) sur ${totalEngines} moteurs.` : ''
+      summary: ''
     };
   } catch (error) {
     appendLog({
