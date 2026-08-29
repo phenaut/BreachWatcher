@@ -197,6 +197,29 @@ body {
   margin-top: 10px;
 }
 
+.safe-checks-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.safe-check-item {
+  background: linear-gradient(180deg, rgba(42, 46, 62, 0.9), rgba(29, 31, 42, 0.9));
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.safe-check-item h3 {
+  margin-bottom: 4px;
+}
+
+.safe-check-item p {
+  margin: 0;
+}
+
 .virus-total-box {
   background: linear-gradient(180deg, rgba(37, 41, 52, 0.9), rgba(22, 25, 34, 0.9));
   border: 1px solid var(--border-color);
@@ -205,6 +228,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .vt-header {

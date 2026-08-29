@@ -92,16 +92,17 @@ function renderSafeChecksSummary(breachInfo) {
     ? `${articles.length} article(s) de presse associé(s)`
     : 'Aucun article de presse détecté';
 
+  safeChecksList.className = 'safe-checks-grid';
   safeChecksList.innerHTML = `
-    <div class="section-container">
+    <div class="safe-check-item">
       <h3 class="section-title">🛡️ Faille référencée</h3>
       <p class="vt-summary">${breachSummary}</p>
     </div>
-    <div class="section-container">
+    <div class="safe-check-item">
       <h3 class="section-title">🧪 VirusTotal</h3>
       <p class="vt-summary">${vtSummary}</p>
     </div>
-    <div class="section-container">
+    <div class="safe-check-item">
       <h3 class="section-title">📰 Articles de presse</h3>
       <p class="vt-summary">${pressSummary}</p>
     </div>

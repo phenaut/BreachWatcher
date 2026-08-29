@@ -26,3 +26,5 @@ Thumbs.db
 *.xpi
 web-ext-artifacts/
 
+.fuse_hidden0000398300000005
+.gitignore
