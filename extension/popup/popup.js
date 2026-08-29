@@ -122,6 +122,7 @@ function renderVirusTotal(vtInfo) {
     vtScoreBar.style.background = 'linear-gradient(90deg, #2ecc71 0%, #2ecc71 100%)';
     vtThreatLevel.textContent = 'Clé API requise';
     vtSummary.textContent = 'Ajoutez votre clé publique VirusTotal dans les paramètres pour activer cette analyse.';
+    vtSummary.classList.remove('hidden');
     virusTotalSection.classList.remove('hidden');
     return;
   }
@@ -152,7 +153,12 @@ function renderVirusTotal(vtInfo) {
     vtScoreBar.style.background = 'linear-gradient(90deg, #e74c3c 0%, #e74c3c 100%)';
   }
 
-  vtSummary.textContent = vtInfo.summary || 'Analyse rapide de URL et fichiers malveillants.';
+  if (vtInfo.summary) {
+    vtSummary.textContent = vtInfo.summary;
+    vtSummary.classList.remove('hidden');
+  } else {
+    vtSummary.classList.add('hidden');
+  }
   virusTotalSection.classList.remove('hidden');
 }
 

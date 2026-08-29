@@ -349,7 +349,18 @@ async function getVirusTotalApiKey() {
 
 async function fetchVirusTotalDomain(domain, apiKey) {
   if (!domain) return null;
+  const t0 = Date.now();
+
   if (!apiKey) {
+    appendLog({
+      source: 'VirusTotal',
+      domain,
+      status: 'error',
+      count: 0,
+      breaches: [],
+      durationMs: 0,
+      error: 'Clé API manquante dans les paramètres.'
+    });
     return {
       enabled: false,
       keyMissing: true,
@@ -369,6 +380,18 @@ async function fetchVirusTotalDomain(domain, apiKey) {
     });
 
     if (!response.ok) {
+      const errorMsg = response.status === 401 || response.status === 403
+        ? 'Clé API invalide ou accès refusé.'
+        : `HTTP ${response.status} (Quota dépassé ou erreur API).`;
+      appendLog({
+        source: 'VirusTotal',
+        domain,
+        status: 'error',
+        count: 0,
+        breaches: [],
+        durationMs: Date.now() - t0,
+        error: errorMsg
+      });
       return {
         enabled: true,
         available: false,
@@ -384,16 +407,41 @@ async function fetchVirusTotalDomain(domain, apiKey) {
     const totalEngines = Object.values(stats).reduce((total, value) => total + Number(value || 0), 0);
     const score = malicious + suspicious;
 
+    const breaches = [];
+    if (score > 0) {
+      breaches.push({
+        title: `${score} moteur(s) de détection considèrent ce domaine comme malveillant/suspect (sur ${totalEngines}).`,
+        source: 'VirusTotal'
+      });
+    }
+
+    appendLog({
+      source: 'VirusTotal',
+      domain,
+      status: 'ok',
+      count: score,
+      breaches: breaches,
+      durationMs: Date.now() - t0
+    });
+
     return {
       enabled: true,
       available: true,
       malicious,
       suspicious,
       totalEngines,
-      score,
-      summary: `Analyse rapide de URL et fichiers malveillants. ${score} signalement(s) sur ${totalEngines} moteurs.`
+      summary: score > 0 ? `Analyse rapide de URL et fichiers malveillants. ${score} signalement(s) sur ${totalEngines} moteurs.` : ''
     };
   } catch (error) {
+    appendLog({
+      source: 'VirusTotal',
+      domain,
+      status: 'error',
+      count: 0,
+      breaches: [],
+      durationMs: Date.now() - t0,
+      error: error.message
+    });
     return {
       enabled: true,
       available: false,
@@ -616,11 +664,7 @@ async function analyzeDomain(domain) {
   var hibpPromise = fetchHIBPBreaches(norm);
   var frenchBreachesPromise = fetchFrenchBreaches(norm);
   var vtApiKey = await getVirusTotalApiKey();
-  var vtPromise = vtApiKey ? fetchVirusTotalDomain(norm, vtApiKey) : Promise.resolve({
-    enabled: false,
-    keyMissing: true,
-    summary: 'Ajoutez votre clé publique VirusTotal dans les paramètres pour activer cette analyse.'
-  });
+  var vtPromise = fetchVirusTotalDomain(norm, vtApiKey);
 
   // Étape 2 : Google News — toujours interrogé si brand suffisamment distinctif (≥ 4 chars)
   var newsPromise = (brand && brand.length >= 4)

@@ -31,6 +31,7 @@ function formatDate(isoString) {
 function sourceClass(source) {
   if (source === 'HIBP') return 'source-hibp';
   if (source === 'FrenchBreaches') return 'source-frenchbreaches';
+  if (source === 'VirusTotal') return 'source-virustotal';
   return '';
 }
 

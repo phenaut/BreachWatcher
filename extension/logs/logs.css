@@ -251,6 +251,10 @@ body {
   color: #a78bfa;
 }
 
+.source-virustotal {
+  color: #10b981;
+}
+
 .col-status {
   display: flex;
   justify-content: center;
