@@ -26,6 +26,15 @@ export const KNOWN_BREACHES = {
       }
     ]
   },
+  'darty.com': {
+    title: 'Incident de sécurité signalé sur Darty',
+    breachDate: '2025-01-01',
+    pwnCount: 0,
+    source: 'Signalement / surveillance de sécurité',
+    dataClasses: ['Données clients', 'Historique d’achats', 'Comptes utilisateurs'],
+    summary: 'Le domaine Darty a été signalé comme touché par un incident de sécurité; il est conservé dans la base locale pour éviter un faux négatif.',
+    articles: []
+  },
   'free.fr': {
     title: 'Cyberattaque et fuite massive de données Free',
     breachDate: '2024-10-26',

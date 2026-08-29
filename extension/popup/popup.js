@@ -14,6 +14,12 @@ const incidentCountEl = document.getElementById('incidentCount');
 const dangerSummaryEl = document.getElementById('dangerSummary');
 const breachesSection = document.getElementById('breachesSection');
 const breachesListEl = document.getElementById('breachesList');
+const virusTotalSection = document.getElementById('virusTotalSection');
+const vtScoreBar = document.getElementById('vtScoreBar');
+const vtScoreValue = document.getElementById('vtScoreValue');
+const vtTotalEngines = document.getElementById('vtTotalEngines');
+const vtThreatLevel = document.getElementById('vtThreatLevel');
+const vtSummary = document.getElementById('vtSummary');
 const articlesSection = document.getElementById('articlesSection');
 const articlesListEl = document.getElementById('articlesList');
 const errorMessageEl = document.getElementById('errorMessage');
@@ -60,6 +66,96 @@ function formatNumber(num) {
  * @param {object} breachInfo
  * @param {string} domain
  */
+function renderSafeChecksSummary(breachInfo) {
+  const safeChecksList = document.getElementById('safeChecksList');
+  if (!safeChecksList || !breachInfo) return;
+
+  const breaches = breachInfo.breaches || [];
+  const vtInfo = breachInfo.virusTotal || { enabled: false, keyMissing: true };
+  const articles = breachInfo.articles || [];
+
+  const breachSummary = breaches.length > 0
+    ? `${breaches.length} fuite(s) référencée(s)`
+    : 'Aucune fuite référencée détectée';
+
+  let vtSummary = 'VirusTotal non interrogé';
+  if (vtInfo.keyMissing) {
+    vtSummary = 'Clé API requise pour lancer l’analyse VirusTotal';
+  } else if (vtInfo.enabled) {
+    const malicious = Number(vtInfo.malicious || 0);
+    const suspicious = Number(vtInfo.suspicious || 0);
+    const total = malicious + suspicious;
+    vtSummary = total > 0 ? `${total} signalement(s) sur ${Number(vtInfo.totalEngines || 0)} moteur(s)` : 'Aucun signalement détecté par VirusTotal';
+  }
+
+  const pressSummary = articles.length > 0
+    ? `${articles.length} article(s) de presse associé(s)`
+    : 'Aucun article de presse détecté';
+
+  safeChecksList.className = 'safe-checks-grid';
+  safeChecksList.innerHTML = `
+    <div class="safe-check-item">
+      <h3 class="section-title">🛡️ Faille référencée</h3>
+      <p class="vt-summary">${breachSummary}</p>
+    </div>
+    <div class="safe-check-item">
+      <h3 class="section-title">🧪 VirusTotal</h3>
+      <p class="vt-summary">${vtSummary}</p>
+    </div>
+    <div class="safe-check-item">
+      <h3 class="section-title">📰 Articles de presse</h3>
+      <p class="vt-summary">${pressSummary}</p>
+    </div>
+  `;
+}
+
+function renderVirusTotal(vtInfo) {
+  if (!vtInfo) {
+    virusTotalSection.classList.add('hidden');
+    return;
+  }
+
+  if (vtInfo.keyMissing) {
+    vtScoreValue.textContent = '0';
+    vtTotalEngines.textContent = '0';
+    vtScoreBar.style.width = '0%';
+    vtScoreBar.style.background = 'linear-gradient(90deg, #2ecc71 0%, #2ecc71 100%)';
+    vtThreatLevel.textContent = 'Clé API requise';
+    vtSummary.textContent = 'Ajoutez votre clé publique VirusTotal dans les paramètres pour activer cette analyse.';
+    virusTotalSection.classList.remove('hidden');
+    return;
+  }
+
+  if (!vtInfo.enabled) {
+    virusTotalSection.classList.add('hidden');
+    return;
+  }
+
+  const malicious = Number(vtInfo.malicious || 0);
+  const suspicious = Number(vtInfo.suspicious || 0);
+  const totalEngines = Number(vtInfo.totalEngines || 0);
+  const score = malicious + suspicious;
+  const ratio = totalEngines > 0 ? Math.min(100, (score / totalEngines) * 100) : 0;
+
+  vtScoreValue.textContent = String(score);
+  vtTotalEngines.textContent = String(totalEngines);
+  vtScoreBar.style.width = `${ratio}%`;
+
+  if (score === 0) {
+    vtThreatLevel.textContent = 'Niveau de menace : faible';
+    vtScoreBar.style.background = 'linear-gradient(90deg, #2ecc71 0%, #2ecc71 100%)';
+  } else if (score < 5) {
+    vtThreatLevel.textContent = 'Niveau de menace : modéré';
+    vtScoreBar.style.background = 'linear-gradient(90deg, #f39c12 0%, #f39c12 100%)';
+  } else {
+    vtThreatLevel.textContent = 'Niveau de menace : élevé';
+    vtScoreBar.style.background = 'linear-gradient(90deg, #e74c3c 0%, #e74c3c 100%)';
+  }
+
+  vtSummary.textContent = vtInfo.summary || 'Analyse rapide de URL et fichiers malveillants.';
+  virusTotalSection.classList.remove('hidden');
+}
+
 function renderStatus(breachInfo, domain) {
   hideAllStates();
   currentDomainEl.textContent = domain || 'Non identifiable';
@@ -86,6 +182,8 @@ function renderStatus(breachInfo, domain) {
   const breaches = breachInfo.breaches || [];
   const articles = breachInfo.articles || [];
   const totalCount = breachInfo.count || (breaches.length + articles.length);
+
+  renderSafeChecksSummary(breachInfo);
 
   if (breachInfo.hasBreach && totalCount > 0) {
     incidentCountEl.textContent = String(totalCount);
@@ -185,8 +283,10 @@ function renderStatus(breachInfo, domain) {
       articlesSection.classList.add('hidden');
     }
 
+    renderVirusTotal(breachInfo.virusTotal || null);
     dangerState.classList.remove('hidden');
   } else {
+    renderVirusTotal(breachInfo && breachInfo.virusTotal ? breachInfo.virusTotal : { enabled: false, keyMissing: true });
     safeState.classList.remove('hidden');
   }
 }

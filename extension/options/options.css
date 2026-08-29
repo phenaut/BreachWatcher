@@ -131,6 +131,24 @@ input[type="url"]:focus {
   color: var(--text-secondary);
 }
 
+.vt-help {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.vt-help a {
+  color: #60a5fa;
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.vt-help a:hover {
+  color: #93c5fd;
+  text-decoration: underline;
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;

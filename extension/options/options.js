@@ -1,10 +1,16 @@
 const DEFAULT_CACHE_DAYS = 7;
 
 const cacheDaysInput = document.getElementById('cacheDays');
+const virustotalApiKeyInput = document.getElementById('virustotalApiKey');
 const saveBtn = document.getElementById('saveBtn');
 const clearCacheBtn = document.getElementById('clearCacheBtn');
 const statusMessage = document.getElementById('statusMessage');
 const extensionVersion = document.getElementById('extensionVersion');
+
+function maskApiKey(value) {
+  if (!value) return '';
+  return '•'.repeat(Math.max(value.length, 8));
+}
 
 extensionVersion.textContent = browser.runtime.getManifest().version;
 
@@ -21,19 +27,52 @@ function showMessage(text, type = 'success') {
 // Charger les options sauvegardées
 async function loadOptions() {
   try {
-    const data = await browser.storage.sync.get({ cacheDays: DEFAULT_CACHE_DAYS });
+    const data = await browser.storage.sync.get({ cacheDays: DEFAULT_CACHE_DAYS, virustotalApiKey: '' });
+    const storedKey = (data.virustotalApiKey || '').trim();
     cacheDaysInput.value = data.cacheDays || DEFAULT_CACHE_DAYS;
+    virustotalApiKeyInput.dataset.realValue = storedKey;
+    virustotalApiKeyInput.value = storedKey ? maskApiKey(storedKey) : '';
   } catch (err) {
     console.error('Erreur chargement options:', err);
   }
 }
 
+virustotalApiKeyInput.addEventListener('focus', () => {
+  const realValue = (virustotalApiKeyInput.dataset.realValue || '').trim();
+  if (realValue && virustotalApiKeyInput.value === maskApiKey(realValue)) {
+    virustotalApiKeyInput.value = realValue;
+  }
+});
+
+virustotalApiKeyInput.addEventListener('blur', () => {
+  const realValue = (virustotalApiKeyInput.value || '').trim();
+  if (realValue) {
+    virustotalApiKeyInput.dataset.realValue = realValue;
+    virustotalApiKeyInput.value = maskApiKey(realValue);
+  } else {
+    virustotalApiKeyInput.dataset.realValue = '';
+    virustotalApiKeyInput.value = '';
+  }
+});
+
 // Sauvegarder les options
 async function saveOptions() {
   const days = parseInt(cacheDaysInput.value, 10) || DEFAULT_CACHE_DAYS;
+  const currentValue = (virustotalApiKeyInput.value || '').trim();
+  const realValue = (virustotalApiKeyInput.dataset.realValue || '').trim();
+  const virustotalApiKey = currentValue && currentValue !== maskApiKey(realValue)
+    ? currentValue
+    : (realValue || '');
 
   try {
-    await browser.storage.sync.set({ cacheDays: days });
+    await browser.storage.sync.set({ cacheDays: days, virustotalApiKey });
+    virustotalApiKeyInput.dataset.realValue = virustotalApiKey;
+    virustotalApiKeyInput.value = virustotalApiKey ? maskApiKey(virustotalApiKey) : '';
+    try {
+      await browser.runtime.sendMessage({ action: 'clearCache' });
+    } catch (err) {
+      console.warn('Impossible de vider le cache après mise à jour VT:', err);
+    }
     showMessage(`Préférences enregistrées ! Cache fixé à ${days} jours.`, 'success');
   } catch (err) {
     showMessage(`Erreur lors de l'enregistrement : ${err.message}`, 'error');

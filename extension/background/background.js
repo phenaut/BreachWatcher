@@ -1,6 +1,6 @@
 /**
- * BreachWatcher - Extension Firefox 100% autonome
- * Fichier unique (background script sans modules ES6 pour compatibilité Firefox)
+ * BreachWatcher - Extension multi-navigateurs (Firefox, Chrome, Edge)
+ * Fichier unique (service worker / background script)
  *
  * Modules embarqués :
  *  - utils/domain.js
@@ -84,6 +84,15 @@ const KNOWN_BREACHES = {
         publishedAt: '2021-02-03'
       }
     ]
+  },
+  'darty.com': {
+    title: 'Incident de sécurité signalé sur Darty',
+    breachDate: '2025-01-01',
+    pwnCount: 0,
+    source: 'Signalement / surveillance de sécurité',
+    dataClasses: ['Données clients', 'Historique d\'achats', 'Comptes utilisateurs'],
+    summary: "Le domaine Darty a été signalé comme touché par un incident de sécurité; il est conservé dans la base locale pour éviter un faux négatif.",
+    articles: []
   },
   'free.fr': {
     title: 'Cyberattaque et fuite massive de données Free',
@@ -187,50 +196,66 @@ function parseArticleTitleAndSource(rawTitle) {
 
 async function fetchPublicCyberNews(domain, brand) {
   if (!domain && !brand) return [];
-  const queryTerms = brand ? `"${brand}"` : `"${domain}"`;
-  const query = encodeURIComponent(`${queryTerms} (piratage OR "fuite de données" OR cyberattaque OR "data breach")`);
-  const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=fr&gl=FR&ceid=FR:fr`;
 
-  try {
-    const response = await fetch(rssUrl, {
-      signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined,
-      headers: { 'Accept': 'application/rss+xml, application/xml, text/xml; q=0.9, */*; q=0.8' }
-    });
-    if (!response.ok) return [];
+  const queryVariants = [
+    `${brand || domain} (pirat OR "fuite de données" OR cyberattaque OR "data breach")`,
+    `${brand || domain} sécurité données`,
+    `${brand || domain} cyberattaque`,
+    `${brand || domain} clients données`,
+    `${brand || domain} data breach`,
+    `${brand || domain} cyber`,
+    `${brand || domain}`
+  ];
 
-    const xmlText = await response.text();
-    const articles = [];
-    const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
-    let match;
-    let count = 0;
+  for (let i = 0; i < queryVariants.length; i++) {
+    const query = encodeURIComponent(queryVariants[i]);
+    const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=fr&gl=FR&ceid=FR:fr`;
 
-    while ((match = itemRegex.exec(xmlText)) !== null && count < 4) {
-      const itemContent = match[1];
-      const titleMatch = /<title>([\s\S]*?)<\/title>/i.exec(itemContent);
-      const linkMatch = /<link>([\s\S]*?)<\/link>/i.exec(itemContent);
-      const pubDateMatch = /<pubDate>([\s\S]*?)<\/pubDate>/i.exec(itemContent);
-      const sourceMatch = /<source[^>]*>([\s\S]*?)<\/source>/i.exec(itemContent);
+    try {
+      const response = await fetch(rssUrl, {
+        signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined,
+        headers: { 'Accept': 'application/rss+xml, application/xml, text/xml; q=0.9, */*; q=0.8' }
+      });
+      if (!response.ok) continue;
 
-      if (titleMatch) {
-        const rawTitle = titleMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
-        const url = linkMatch ? linkMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '#';
-        const pubDate = pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString();
-        const explicitSource = sourceMatch ? sourceMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
-        const parsed = parseArticleTitleAndSource(rawTitle);
-        articles.push({
-          title: parsed.title,
-          source: explicitSource || parsed.source,
-          url: url,
-          publishedAt: pubDate
-        });
-        count++;
+      const xmlText = await response.text();
+      const articles = [];
+      const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+      let match;
+      let count = 0;
+
+      while ((match = itemRegex.exec(xmlText)) !== null && count < 10) {
+        const itemContent = match[1];
+        const titleMatch = /<title>([\s\S]*?)<\/title>/i.exec(itemContent);
+        const linkMatch = /<link>([\s\S]*?)<\/link>/i.exec(itemContent);
+        const pubDateMatch = /<pubDate>([\s\S]*?)<\/pubDate>/i.exec(itemContent);
+        const sourceMatch = /<source[^>]*>([\s\S]*?)<\/source>/i.exec(itemContent);
+
+        if (titleMatch) {
+          const rawTitle = titleMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
+          const url = linkMatch ? linkMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '#';
+          const pubDate = pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString();
+          const explicitSource = sourceMatch ? sourceMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
+          const parsed = parseArticleTitleAndSource(rawTitle);
+          articles.push({
+            title: parsed.title,
+            source: explicitSource || parsed.source,
+            url: url,
+            publishedAt: pubDate
+          });
+          count++;
+        }
       }
+
+      if (articles.length > 0) {
+        return articles;
+      }
+    } catch (error) {
+      console.debug(`[NewsParser] Flux RSS inaccessible pour ${domain} (${queryVariants[i]}):`, error.message);
     }
-    return articles;
-  } catch (error) {
-    console.debug(`[NewsParser] Flux RSS inaccessible pour ${domain}:`, error.message);
-    return [];
   }
+
+  return [];
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -247,6 +272,71 @@ async function getCacheTtlMs() {
     return days * 24 * 60 * 60 * 1000;
   } catch {
     return DEFAULT_CACHE_DAYS * 24 * 60 * 60 * 1000;
+  }
+}
+
+async function getVirusTotalApiKey() {
+  try {
+    const res = await browser.storage.sync.get({ virustotalApiKey: '' });
+    const key = (res.virustotalApiKey || '').trim();
+    return key;
+  } catch {
+    return '';
+  }
+}
+
+async function fetchVirusTotalDomain(domain, apiKey) {
+  if (!domain) return null;
+  if (!apiKey) {
+    return {
+      enabled: false,
+      keyMissing: true,
+      summary: 'Ajoutez votre clé publique VirusTotal dans les paramètres pour activer cette analyse.'
+    };
+  }
+
+  try {
+    const url = `https://www.virustotal.com/api/v3/domains/${encodeURIComponent(domain)}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'x-apikey': apiKey,
+        'Accept': 'application/json'
+      },
+      signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
+    });
+
+    if (!response.ok) {
+      return {
+        enabled: true,
+        available: false,
+        summary: 'La clé VirusTotal est invalide ou le quota est dépassé.'
+      };
+    }
+
+    const payload = await response.json();
+    const attrs = payload && payload.data && payload.data.attributes ? payload.data.attributes : {};
+    const stats = attrs.last_analysis_stats || {};
+    const malicious = Number(stats.malicious || 0);
+    const suspicious = Number(stats.suspicious || 0);
+    const totalEngines = Object.values(stats).reduce((total, value) => total + Number(value || 0), 0);
+    const score = malicious + suspicious;
+
+    return {
+      enabled: true,
+      available: true,
+      malicious,
+      suspicious,
+      totalEngines,
+      score,
+      summary: `Analyse rapide de URL et fichiers malveillants. ${score} signalement(s) sur ${totalEngines} moteurs.`
+    };
+  } catch (error) {
+    return {
+      enabled: true,
+      available: false,
+      summary: 'VirusTotal indisponible actuellement.'
+    };
   }
 }
 
@@ -283,7 +373,11 @@ async function fetchHIBPBreaches(domain) {
 
 // Mots-clés de sécurité qui doivent apparaître dans le titre d'un article RSS
 // pour qu'il soit considéré comme un signal d'incident réel
-var SECURITY_KEYWORDS = ['cyberattaque', 'fuite de données', 'piratage', 'cyberattack', 'data breach', 'hack'];
+var SECURITY_KEYWORDS = [
+  'cyberattaque', 'fuite de donnees', 'fuite de données', 'piratage', 'cyberattack', 'data breach', 'hack',
+  'attaque', 'hacker', 'vol de donnees', 'vol de données', 'breach', 'données', 'donnees', 'clients', 'fraude', 'security',
+  'cyber', 'identite', 'identité', 'cyberattaque chez', 'donnees clients', 'données clients'
+];
 
 /**
  * Vérifie si un titre d'article contient le brand ET au moins un mot-clé sécurité.
@@ -293,23 +387,23 @@ var SECURITY_KEYWORDS = ['cyberattaque', 'fuite de données', 'piratage', 'cyber
  */
 function isRelevantSecurityArticle(title, brand) {
   if (!title || !brand) return false;
-  var t = title.toLowerCase();
-
-  // Normalisation des accents pour la comparaison (é → e, etc.)
   var normalize = function(str) {
-    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   };
   var tNorm = normalize(title);
   var brandNorm = normalize(brand);
 
-  // 1. Le brand doit apparaître dans le titre
-  if (!tNorm.includes(brandNorm)) return false;
+  var brandMatches = tNorm.includes(brandNorm)
+    || tNorm.includes(normalize(brand.replace(/\.fr$/i, '')))
+    || tNorm.includes(normalize((brand + '.fr')));
 
-  // 2. Au moins un mot-clé de sécurité doit apparaître dans le titre
+  if (!brandMatches) return false;
+
   for (var i = 0; i < SECURITY_KEYWORDS.length; i++) {
     if (tNorm.includes(normalize(SECURITY_KEYWORDS[i]))) return true;
   }
-  return false;
+
+  return tNorm.includes('cyber') || tNorm.includes('attaque') || tNorm.includes('pirat') || tNorm.includes('hack');
 }
 
 async function analyzeDomain(domain) {
@@ -318,6 +412,12 @@ async function analyzeDomain(domain) {
 
   // Étape 1 : Brèches vérifiées (HIBP + base embarquée) — en parallèle avec le RSS
   var hibpPromise = fetchHIBPBreaches(norm);
+  var vtApiKey = await getVirusTotalApiKey();
+  var vtPromise = vtApiKey ? fetchVirusTotalDomain(norm, vtApiKey) : Promise.resolve({
+    enabled: false,
+    keyMissing: true,
+    summary: 'Ajoutez votre clé publique VirusTotal dans les paramètres pour activer cette analyse.'
+  });
 
   // Étape 2 : Google News — toujours interrogé si brand suffisamment distinctif (≥ 4 chars)
   var newsPromise = (brand && brand.length >= 4)
@@ -325,6 +425,7 @@ async function analyzeDomain(domain) {
     : Promise.resolve([]);
 
   var hibpBreaches = await hibpPromise;
+  var virusTotal = await vtPromise;
   var allBreaches = [].concat(hibpBreaches);
 
   if (KNOWN_BREACHES[norm]) {
@@ -379,6 +480,7 @@ async function analyzeDomain(domain) {
     qualifiedNewsCount: qualifiedNewsCount,
     breaches: allBreaches,
     articles: allArticles,
+    virusTotal: virusTotal,
     analyzedAt: new Date().toISOString()
   };
 }
@@ -428,26 +530,85 @@ async function getDomainStatus(domain, forceRefresh) {
   return Object.assign({}, result, { fromCache: false });
 }
 
+function getToolbarBadgeState(breachInfo) {
+  if (!breachInfo) {
+    return {
+      text: '…',
+      color: '#3498db',
+      title: 'BreachWatcher : Analyse en cours...',
+      icon: 'icons/icon-16.png'
+    };
+  }
+
+  const breachCount = Number(breachInfo.count || 0);
+  const hasReferencedBreach = Boolean(breachInfo.hasBreach && breachCount > 0);
+  const vtInfo = breachInfo.virusTotal || null;
+  const vtTotal = Number((vtInfo && vtInfo.totalEngines) || 0);
+  const vtScore = Number((vtInfo && (vtInfo.score !== undefined ? vtInfo.score : ((Number(vtInfo.malicious || 0) + Number(vtInfo.suspicious || 0))))) || 0);
+  const vtRatio = vtTotal > 0 ? (vtScore / vtTotal) * 100 : 0;
+
+  if (hasReferencedBreach) {
+    return {
+      text: breachCount > 9 ? '9+' : String(breachCount),
+      color: '#e74c3c',
+      title: `⚠️ BreachWatcher : ${breachCount} incident(s) signalé(s) pour ce site.`,
+      icon: 'icons/icon-warning-16.png'
+    };
+  }
+
+  if (vtInfo && vtInfo.enabled && vtRatio > 3) {
+    return {
+      text: 'VT',
+      color: '#e74c3c',
+      title: `⚠️ BreachWatcher : VirusTotal détecte ${vtRatio.toFixed(1)}% de signalements pour ce domaine.`,
+      icon: 'icons/icon-warning-16.png'
+    };
+  }
+
+  if (vtInfo && vtInfo.enabled && vtRatio > 0) {
+    return {
+      text: '!',
+      color: '#f39c12',
+      title: `⚠️ BreachWatcher : analyse de réputation partiellement préoccupante pour ce domaine.`,
+      icon: 'icons/icon-warning-16.png'
+    };
+  }
+
+  if (!hasReferencedBreach && (!vtInfo || !vtInfo.enabled || vtRatio === 0)) {
+    return {
+      text: '✓',
+      color: '#2ecc71',
+      title: 'BreachWatcher : Aucun incident de sécurité récent signalé.',
+      icon: 'icons/icon-16.png'
+    };
+  }
+
+  return {
+    text: '!',
+    color: '#f39c12',
+    title: 'BreachWatcher : niveau de risque modéré, vérification à surveiller.',
+    icon: 'icons/icon-warning-16.png'
+  };
+}
+
 async function updateTabBadge(tabId, breachInfo) {
   if (!tabId || tabId < 0) return;
   try {
-    if (breachInfo.hasBreach && breachInfo.count > 0) {
-      await browser.action.setBadgeText({
-        tabId: tabId,
-        text: breachInfo.count > 9 ? '9+' : String(breachInfo.count)
-      });
-      await browser.action.setBadgeBackgroundColor({ tabId: tabId, color: '#d32f2f' });
-      await browser.action.setTitle({
-        tabId: tabId,
-        title: `⚠️ BreachWatcher : ${breachInfo.count} incident(s) signalé(s) pour ce site.`
-      });
-    } else {
-      await browser.action.setBadgeText({ tabId: tabId, text: '' });
-      await browser.action.setTitle({
-        tabId: tabId,
-        title: 'BreachWatcher : Aucun incident de sécurité récent signalé.'
-      });
-    }
+    const state = getToolbarBadgeState(breachInfo);
+    await browser.action.setBadgeText({ tabId: tabId, text: state.text });
+    await browser.action.setBadgeBackgroundColor({ tabId: tabId, color: state.color });
+    await browser.action.setIcon({
+      tabId: tabId,
+      path: {
+        16: state.icon,
+        32: state.icon,
+        48: state.icon
+      }
+    });
+    await browser.action.setTitle({
+      tabId: tabId,
+      title: state.title
+    });
   } catch (err) {
     console.debug('[BreachWatcher] Badge non mis à jour:', err.message);
   }
