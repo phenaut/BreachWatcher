@@ -371,6 +371,64 @@ async function fetchHIBPBreaches(domain) {
   }
 }
 
+async function fetchFrenchBreaches(domain) {
+  if (!domain) return [];
+
+  const domainLower = String(domain).toLowerCase();
+  const brand = extractBrandName(domainLower);
+
+  try {
+    const response = await fetch('https://frenchbreaches.com/feed.xml', {
+      signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined,
+      headers: {
+        'Accept': 'application/rss+xml, application/xml, text/xml; q=0.9, */*; q=0.8'
+      }
+    });
+
+    if (!response.ok) return [];
+
+    const xmlText = await response.text();
+    const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+    const breaches = [];
+    let match;
+
+    while ((match = itemRegex.exec(xmlText)) !== null) {
+      const itemContent = match[1];
+      const titleMatch = /<title>([\s\S]*?)<\/title>/i.exec(itemContent);
+      const linkMatch = /<link>([\s\S]*?)<\/link>/i.exec(itemContent);
+      const pubDateMatch = /<pubDate>([\s\S]*?)<\/pubDate>/i.exec(itemContent);
+
+      if (!titleMatch) continue;
+
+      const rawTitle = titleMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
+      const normalizedTitle = rawTitle.toLowerCase();
+      const linkText = linkMatch ? linkMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
+      const normalizedLink = linkText.toLowerCase();
+
+      const matchesDomain = normalizedTitle.includes(domainLower)
+        || normalizedTitle.includes(brand || '')
+        || normalizedLink.includes(domainLower)
+        || normalizedLink.includes(brand || '');
+
+      if (!matchesDomain) continue;
+
+      breaches.push({
+        title: rawTitle,
+        breachDate: pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString(),
+        pwnCount: 0,
+        source: 'FrenchBreaches',
+        dataClasses: [],
+        summary: 'Source de fuite répertoriée dans le flux FrenchBreaches.',
+        isVerified: true
+      });
+    }
+
+    return breaches.slice(0, 10);
+  } catch {
+    return [];
+  }
+}
+
 // Mots-clés de sécurité qui doivent apparaître dans le titre d'un article RSS
 // pour qu'il soit considéré comme un signal d'incident réel
 var SECURITY_KEYWORDS = [
@@ -410,8 +468,9 @@ async function analyzeDomain(domain) {
   var norm = domain.toLowerCase();
   var brand = extractBrandName(norm);
 
-  // Étape 1 : Brèches vérifiées (HIBP + base embarquée) — en parallèle avec le RSS
+  // Étape 1 : Brèches vérifiées (HIBP + FrenchBreaches + base embarquée) — en parallèle avec le RSS
   var hibpPromise = fetchHIBPBreaches(norm);
+  var frenchBreachesPromise = fetchFrenchBreaches(norm);
   var vtApiKey = await getVirusTotalApiKey();
   var vtPromise = vtApiKey ? fetchVirusTotalDomain(norm, vtApiKey) : Promise.resolve({
     enabled: false,
@@ -425,8 +484,9 @@ async function analyzeDomain(domain) {
     : Promise.resolve([]);
 
   var hibpBreaches = await hibpPromise;
+  var frenchBreaches = await frenchBreachesPromise;
   var virusTotal = await vtPromise;
-  var allBreaches = [].concat(hibpBreaches);
+  var allBreaches = [].concat(hibpBreaches, frenchBreaches);
 
   if (KNOWN_BREACHES[norm]) {
     var known = KNOWN_BREACHES[norm];

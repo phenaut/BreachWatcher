@@ -184,109 +184,106 @@ function renderStatus(breachInfo, domain) {
   const totalCount = breachInfo.count || (breaches.length + articles.length);
 
   renderSafeChecksSummary(breachInfo);
+  renderVirusTotal(breachInfo && breachInfo.virusTotal ? breachInfo.virusTotal : { enabled: false, keyMissing: true });
 
-  if (breachInfo.hasBreach && totalCount > 0) {
+  if (breaches.length > 0) {
     incidentCountEl.textContent = String(totalCount);
+    breachesListEl.innerHTML = '';
+    breaches.forEach((breach) => {
+      const li = document.createElement('li');
+      li.className = 'breach-item';
 
-    // 1. Rendu des brèches historiques
-    if (breaches.length > 0) {
-      breachesListEl.innerHTML = '';
-      breaches.forEach((breach) => {
-        const li = document.createElement('li');
-        li.className = 'breach-item';
+      const headerDiv = document.createElement('div');
+      headerDiv.className = 'item-header';
 
-        const headerDiv = document.createElement('div');
-        headerDiv.className = 'item-header';
+      const titleSpan = document.createElement('strong');
+      titleSpan.className = 'breach-title';
+      titleSpan.textContent = breach.title || 'Incident de sécurité';
 
-        const titleSpan = document.createElement('strong');
-        titleSpan.className = 'breach-title';
-        titleSpan.textContent = breach.title || 'Incident de sécurité';
+      const dateBadge = document.createElement('span');
+      dateBadge.className = 'date-badge';
+      dateBadge.textContent = formatDate(breach.breachDate);
 
-        const dateBadge = document.createElement('span');
-        dateBadge.className = 'date-badge';
-        dateBadge.textContent = formatDate(breach.breachDate);
+      headerDiv.appendChild(titleSpan);
+      headerDiv.appendChild(dateBadge);
+      li.appendChild(headerDiv);
 
-        headerDiv.appendChild(titleSpan);
-        headerDiv.appendChild(dateBadge);
-        li.appendChild(headerDiv);
+      if (breach.pwnCount && breach.pwnCount > 0) {
+        const countP = document.createElement('div');
+        countP.className = 'pwn-count';
+        countP.textContent = `👥 ~${formatNumber(breach.pwnCount)} comptes concernés`;
+        li.appendChild(countP);
+      }
 
-        if (breach.pwnCount && breach.pwnCount > 0) {
-          const countP = document.createElement('div');
-          countP.className = 'pwn-count';
-          countP.textContent = `👥 ~${formatNumber(breach.pwnCount)} comptes concernés`;
-          li.appendChild(countP);
-        }
+      if (breach.summary) {
+        const summaryP = document.createElement('p');
+        summaryP.className = 'item-summary';
+        summaryP.textContent = breach.summary;
+        li.appendChild(summaryP);
+      }
 
-        if (breach.summary) {
-          const summaryP = document.createElement('p');
-          summaryP.className = 'item-summary';
-          summaryP.textContent = breach.summary;
-          li.appendChild(summaryP);
-        }
+      if (breach.dataClasses && breach.dataClasses.length > 0) {
+        const tagsDiv = document.createElement('div');
+        tagsDiv.className = 'data-tags';
+        breach.dataClasses.slice(0, 4).forEach((cls) => {
+          const tag = document.createElement('span');
+          tag.className = 'data-tag';
+          tag.textContent = cls;
+          tagsDiv.appendChild(tag);
+        });
+        li.appendChild(tagsDiv);
+      }
 
-        if (breach.dataClasses && breach.dataClasses.length > 0) {
-          const tagsDiv = document.createElement('div');
-          tagsDiv.className = 'data-tags';
-          breach.dataClasses.slice(0, 4).forEach((cls) => {
-            const tag = document.createElement('span');
-            tag.className = 'data-tag';
-            tag.textContent = cls;
-            tagsDiv.appendChild(tag);
-          });
-          li.appendChild(tagsDiv);
-        }
+      breachesListEl.appendChild(li);
+    });
+    breachesSection.classList.remove('hidden');
+  } else {
+    breachesSection.classList.add('hidden');
+  }
 
-        breachesListEl.appendChild(li);
-      });
-      breachesSection.classList.remove('hidden');
-    } else {
-      breachesSection.classList.add('hidden');
-    }
+  if (articles.length > 0) {
+    articlesListEl.innerHTML = '';
+    articles.forEach((article) => {
+      const li = document.createElement('li');
+      li.className = 'article-item';
 
-    // 2. Rendu des articles de presse
-    if (articles.length > 0) {
-      articlesListEl.innerHTML = '';
-      articles.forEach((article) => {
-        const li = document.createElement('li');
-        li.className = 'article-item';
+      const titleDiv = document.createElement('div');
+      titleDiv.className = 'article-title';
 
-        const titleDiv = document.createElement('div');
-        titleDiv.className = 'article-title';
+      const link = document.createElement('a');
+      link.href = article.url || '#';
+      link.textContent = article.title || 'Article sans titre';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      titleDiv.appendChild(link);
 
-        const link = document.createElement('a');
-        link.href = article.url || '#';
-        link.textContent = article.title || 'Article sans titre';
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        titleDiv.appendChild(link);
+      const metaDiv = document.createElement('div');
+      metaDiv.className = 'article-meta';
 
-        const metaDiv = document.createElement('div');
-        metaDiv.className = 'article-meta';
+      const sourceSpan = document.createElement('span');
+      sourceSpan.className = 'article-source';
+      sourceSpan.textContent = article.source || 'Presse';
 
-        const sourceSpan = document.createElement('span');
-        sourceSpan.className = 'article-source';
-        sourceSpan.textContent = article.source || 'Presse';
+      const dateSpan = document.createElement('span');
+      dateSpan.className = 'article-date';
+      dateSpan.textContent = formatDate(article.publishedAt);
 
-        const dateSpan = document.createElement('span');
-        dateSpan.className = 'article-date';
-        dateSpan.textContent = formatDate(article.publishedAt);
+      metaDiv.appendChild(sourceSpan);
+      metaDiv.appendChild(dateSpan);
 
-        metaDiv.appendChild(sourceSpan);
-        metaDiv.appendChild(dateSpan);
+      li.appendChild(titleDiv);
+      li.appendChild(metaDiv);
+      articlesListEl.appendChild(li);
+    });
+    articlesSection.classList.remove('hidden');
+  } else {
+    articlesSection.classList.add('hidden');
+  }
 
-        li.appendChild(titleDiv);
-        li.appendChild(metaDiv);
-        articlesListEl.appendChild(li);
-      });
-      articlesSection.classList.remove('hidden');
-    } else {
-      articlesSection.classList.add('hidden');
-    }
-
-    renderVirusTotal(breachInfo.virusTotal || null);
+  if (breaches.length > 0 || breachInfo.hasBreach) {
+    incidentCountEl.textContent = String(totalCount);
     dangerState.classList.remove('hidden');
   } else {
-    renderVirusTotal(breachInfo && breachInfo.virusTotal ? breachInfo.virusTotal : { enabled: false, keyMissing: true });
     safeState.classList.remove('hidden');
   }
 }
