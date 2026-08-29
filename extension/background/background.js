@@ -261,6 +261,44 @@ async function fetchPublicCyberNews(domain, brand) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// MODULE : Logging des requêtes
+// ─────────────────────────────────────────────────────────────
+
+const BW_LOGS_KEY = 'bw_logs';
+const BW_LOGS_MAX = 500;
+
+/**
+ * Ajoute une entrée de log dans browser.storage.local.
+ * Purge automatiquement les entrées expirées avant l'écriture.
+ * @param {{ source: string, domain: string, status: string, count: number, breaches: Array, durationMs: number, error?: string }} entry
+ */
+async function appendLog(entry) {
+  try {
+    const ttlMs = await getCacheTtlMs();
+    const stored = await browser.storage.local.get(BW_LOGS_KEY);
+    let logs = Array.isArray(stored[BW_LOGS_KEY]) ? stored[BW_LOGS_KEY] : [];
+
+    // Purger les entrées expirées
+    const cutoff = Date.now() - ttlMs;
+    logs = logs.filter(function(l) { return l.ts && new Date(l.ts).getTime() > cutoff; });
+
+    // Ajouter la nouvelle entrée
+    logs.push(Object.assign({ ts: new Date().toISOString() }, entry));
+
+    // Limiter à BW_LOGS_MAX entrées (FIFO)
+    if (logs.length > BW_LOGS_MAX) {
+      logs = logs.slice(logs.length - BW_LOGS_MAX);
+    }
+
+    const payload = {};
+    payload[BW_LOGS_KEY] = logs;
+    await browser.storage.local.set(payload);
+  } catch (err) {
+    console.debug('[BreachWatcher] Erreur écriture log:', err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 // LOGIQUE PRINCIPALE : Cache + Analyse + Badge
 // ─────────────────────────────────────────────────────────────
 
@@ -343,6 +381,7 @@ async function fetchVirusTotalDomain(domain, apiKey) {
 }
 
 async function fetchHIBPBreaches(domain) {
+  const t0 = Date.now();
   try {
     const url = `https://haveibeenpwned.com/api/v3/breaches?domain=${encodeURIComponent(domain)}`;
     const response = await fetch(url, {
@@ -352,11 +391,20 @@ async function fetchHIBPBreaches(domain) {
         'Accept': 'application/json'
       }
     });
-    if (response.status === 404) return [];
-    if (!response.ok) return [];
+    if (response.status === 404) {
+      appendLog({ source: 'HIBP', domain, status: 'empty', count: 0, breaches: [], durationMs: Date.now() - t0 });
+      return [];
+    }
+    if (!response.ok) {
+      appendLog({ source: 'HIBP', domain, status: 'error', count: 0, breaches: [], durationMs: Date.now() - t0, error: `HTTP ${response.status}` });
+      return [];
+    }
     const data = await response.json();
-    if (!Array.isArray(data)) return [];
-    return data.map((b) => {
+    if (!Array.isArray(data)) {
+      appendLog({ source: 'HIBP', domain, status: 'empty', count: 0, breaches: [], durationMs: Date.now() - t0 });
+      return [];
+    }
+    const breaches = data.map((b) => {
       const cleanDesc = (b.Description || '').replace(/<[^>]*>?/gm, '');
       return {
         title: b.Title || b.Name,
@@ -368,7 +416,17 @@ async function fetchHIBPBreaches(domain) {
         isVerified: true
       };
     });
-  } catch {
+    appendLog({
+      source: 'HIBP',
+      domain,
+      status: breaches.length > 0 ? 'ok' : 'empty',
+      count: breaches.length,
+      breaches: breaches.map(function(b) { return { title: b.title, breachDate: b.breachDate, source: b.source }; }),
+      durationMs: Date.now() - t0
+    });
+    return breaches;
+  } catch (err) {
+    appendLog({ source: 'HIBP', domain, status: 'error', count: 0, breaches: [], durationMs: Date.now() - t0, error: err.message });
     return [];
   }
 }
@@ -376,6 +434,7 @@ async function fetchHIBPBreaches(domain) {
 async function fetchFrenchBreaches(domain) {
   if (!domain) return [];
 
+  const t0 = Date.now();
   const domainLower = String(domain).toLowerCase();
   const brand = extractBrandName(domainLower);
 
@@ -387,7 +446,10 @@ async function fetchFrenchBreaches(domain) {
       }
     });
 
-    if (!response.ok) return [];
+    if (!response.ok) {
+      appendLog({ source: 'FrenchBreaches', domain, status: 'error', count: 0, breaches: [], durationMs: Date.now() - t0, error: `HTTP ${response.status}` });
+      return [];
+    }
 
     const xmlText = await response.text();
     const itemRegex = /<(?:item|entry)[\s>]([\s\S]*?)<\/(?:item|entry)>/gi;
@@ -472,9 +534,19 @@ async function fetchFrenchBreaches(domain) {
       });
     }
 
-    return breaches.slice(0, 10);
+    const result = breaches.slice(0, 10);
+    appendLog({
+      source: 'FrenchBreaches',
+      domain,
+      status: result.length > 0 ? 'ok' : 'empty',
+      count: result.length,
+      breaches: result.map(function(b) { return { title: b.title, breachDate: b.breachDate, source: b.source }; }),
+      durationMs: Date.now() - t0
+    });
+    return result;
   } catch (err) {
     console.debug('[BreachWatcher] Erreur FrenchBreaches:', err);
+    appendLog({ source: 'FrenchBreaches', domain, status: 'error', count: 0, breaches: [], durationMs: Date.now() - t0, error: err.message });
     return [];
   }
 }
@@ -801,6 +873,23 @@ browser.runtime.onMessage.addListener(function(message, sender) {
         });
       }
       return { success: true, clearedCount: 0 };
+    }).catch(function(err) {
+      return { success: false, error: err.message };
+    });
+  }
+
+  if (message.action === 'getLogs') {
+    return browser.storage.local.get(BW_LOGS_KEY).then(function(stored) {
+      var logs = Array.isArray(stored[BW_LOGS_KEY]) ? stored[BW_LOGS_KEY] : [];
+      return { success: true, logs: logs };
+    }).catch(function(err) {
+      return { success: false, error: err.message };
+    });
+  }
+
+  if (message.action === 'clearLogs') {
+    return browser.storage.local.remove(BW_LOGS_KEY).then(function() {
+      return { success: true };
     }).catch(function(err) {
       return { success: false, error: err.message };
     });

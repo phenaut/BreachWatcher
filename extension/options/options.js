@@ -6,6 +6,9 @@ const saveBtn = document.getElementById('saveBtn');
 const clearCacheBtn = document.getElementById('clearCacheBtn');
 const statusMessage = document.getElementById('statusMessage');
 const extensionVersion = document.getElementById('extensionVersion');
+const openLogsBtn = document.getElementById('openLogsBtn');
+const clearLogsBtn = document.getElementById('clearLogsBtn');
+const logsStatusMessage = document.getElementById('logsStatusMessage');
 
 function maskApiKey(value) {
   if (!value) return '';
@@ -102,3 +105,40 @@ async function clearCache() {
 saveBtn.addEventListener('click', saveOptions);
 clearCacheBtn.addEventListener('click', clearCache);
 document.addEventListener('DOMContentLoaded', loadOptions);
+
+// ── Logs ──────────────────────────────────────────────────────
+
+function showLogsMessage(text, type = 'success') {
+  logsStatusMessage.textContent = text;
+  logsStatusMessage.className = `status-msg ${type}`;
+  logsStatusMessage.classList.remove('hidden');
+  setTimeout(() => {
+    logsStatusMessage.classList.add('hidden');
+  }, 4000);
+}
+
+function openLogs() {
+  const url = browser.runtime.getURL('logs/logs.html');
+  browser.tabs.create({ url });
+}
+
+async function clearLogs() {
+  clearLogsBtn.disabled = true;
+  clearLogsBtn.textContent = 'Suppression…';
+  try {
+    const response = await browser.runtime.sendMessage({ action: 'clearLogs' });
+    if (response && response.success) {
+      showLogsMessage('Journal vidé avec succès.', 'success');
+    } else {
+      showLogsMessage('Impossible de vider le journal.', 'error');
+    }
+  } catch (err) {
+    showLogsMessage(`Erreur : ${err.message}`, 'error');
+  } finally {
+    clearLogsBtn.disabled = false;
+    clearLogsBtn.textContent = 'Vider le journal';
+  }
+}
+
+openLogsBtn.addEventListener('click', openLogs);
+clearLogsBtn.addEventListener('click', clearLogs);

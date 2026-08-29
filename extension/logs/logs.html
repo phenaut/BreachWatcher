@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal des requêtes — BreachWatcher</title>
+  <link rel="stylesheet" href="logs.css">
+</head>
+<body>
+  <div class="logs-container">
+    <header class="header">
+      <span class="icon">🛡️</span>
+      <div class="header-title">
+        <h1>Journal des requêtes</h1>
+        <span class="subtitle">BreachWatcher</span>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <div class="filters">
+        <div class="filter-group">
+          <label for="filterSource">Source</label>
+          <select id="filterSource">
+            <option value="">Toutes</option>
+            <option value="HIBP">HIBP</option>
+            <option value="FrenchBreaches">FrenchBreaches</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filterStatus">Statut</label>
+          <select id="filterStatus">
+            <option value="">Tous</option>
+            <option value="ok">ok</option>
+            <option value="empty">empty</option>
+            <option value="error">error</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filterDomain">Domaine</label>
+          <input type="text" id="filterDomain" placeholder="ex: free.fr" autocomplete="off" />
+        </div>
+      </div>
+      <div class="toolbar-actions">
+        <span id="logCount" class="log-count">—</span>
+        <button id="refreshBtn" class="btn btn-secondary">&#8635; Actualiser</button>
+        <button id="exportBtn" class="btn btn-secondary">&#11015; Exporter CSV</button>
+        <button id="clearLogsBtn" class="btn btn-danger">&#128465; Vider</button>
+      </div>
+    </div>
+
+    <div id="logsList" class="logs-list">
+      <div class="empty-state">
+        <span class="empty-icon">&#128203;</span>
+        <p>Chargement du journal&#8230;</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="../browser-polyfill.js"></script>
+  <script src="logs.js"></script>
+</body>
+</html>
