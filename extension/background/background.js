@@ -364,7 +364,8 @@ async function fetchVirusTotalDomain(domain, apiKey) {
     return {
       enabled: false,
       keyMissing: true,
-      summary: 'Ajoutez votre clé publique VirusTotal dans les paramètres pour activer cette analyse.'
+      summary: 'Ajoutez votre clé publique VirusTotal dans les paramètres pour activer cette analyse.',
+      categories: []
     };
   }
 
@@ -395,7 +396,8 @@ async function fetchVirusTotalDomain(domain, apiKey) {
       return {
         enabled: true,
         available: false,
-        summary: 'La clé VirusTotal est invalide ou le quota est dépassé.'
+        summary: 'La clé VirusTotal est invalide ou le quota est dépassé.',
+        categories: []
       };
     }
 
@@ -406,6 +408,10 @@ async function fetchVirusTotalDomain(domain, apiKey) {
     const suspicious = Number(stats.suspicious || 0);
     const totalEngines = Object.values(stats).reduce((total, value) => total + Number(value || 0), 0);
     const score = malicious + suspicious;
+
+    // Récupération et dédoublonnage des catégories fournies par VirusTotal
+    const rawCategories = attrs.categories || {};
+    const categories = Array.from(new Set(Object.values(rawCategories).filter(Boolean)));
 
     const breaches = [];
     if (score > 0) {
@@ -430,6 +436,7 @@ async function fetchVirusTotalDomain(domain, apiKey) {
       malicious,
       suspicious,
       totalEngines,
+      categories,
       summary: ''
     };
   } catch (error) {
@@ -445,7 +452,8 @@ async function fetchVirusTotalDomain(domain, apiKey) {
     return {
       enabled: true,
       available: false,
-      summary: 'VirusTotal indisponible actuellement.'
+      summary: 'VirusTotal indisponible actuellement.',
+      categories: []
     };
   }
 }
