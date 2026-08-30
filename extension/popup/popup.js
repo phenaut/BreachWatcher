@@ -69,6 +69,12 @@ function renderVirusTotal(vtInfo) {
     return;
   }
 
+  // Nettoyage préalable d'un éventuel bloc de détails déjà injecté
+  const existingDetails = virusTotalSection.querySelector('.vt-categories-container');
+  if (existingDetails) {
+    existingDetails.remove();
+  }
+
   if (vtInfo.keyMissing) {
     vtScoreValue.textContent = '0';
     vtTotalEngines.textContent = '0';
@@ -88,6 +94,8 @@ function renderVirusTotal(vtInfo) {
 
   const malicious = Number(vtInfo.malicious || 0);
   const suspicious = Number(vtInfo.suspicious || 0);
+  const harmless = Number(vtInfo.harmless || 0);
+  const undetected = Number(vtInfo.undetected || 0);
   const totalEngines = Number(vtInfo.totalEngines || 0);
   const score = malicious + suspicious;
   const ratio = totalEngines > 0 ? Math.min(100, (score / totalEngines) * 100) : 0;
@@ -113,6 +121,27 @@ function renderVirusTotal(vtInfo) {
   } else {
     vtSummary.classList.add('hidden');
   }
+  // Injection du bloc d'affichage des catégories sous la barre / résumé
+  const categoriesContainer = document.createElement('div');
+  categoriesContainer.className = 'vt-categories-container';
+  categoriesContainer.style.cssText = 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; font-size: 0.85em;';
+
+  categoriesContainer.innerHTML = `
+    <div style="background: rgba(231, 76, 60, 0.1); border-left: 3px solid #e74c3c; padding: 6px 8px; border-radius: 4px;">
+      <span style="color: #e74c3c; font-weight: bold;">Malicieux :</span> ${malicious}
+    </div>
+    <div style="background: rgba(243, 156, 18, 0.1); border-left: 3px solid #f39c12; padding: 6px 8px; border-radius: 4px;">
+      <span style="color: #f39c12; font-weight: bold;">Suspect :</span> ${suspicious}
+    </div>
+    <div style="background: rgba(46, 204, 113, 0.1); border-left: 3px solid #2ecc71; padding: 6px 8px; border-radius: 4px;">
+      <span style="color: #2ecc71; font-weight: bold;">Inoffensif :</span> ${harmless}
+    </div>
+    <div style="background: rgba(149, 165, 166, 0.1); border-left: 3px solid #95a5a6; padding: 6px 8px; border-radius: 4px;">
+      <span style="color: #7f8c8d; font-weight: bold;">Non détecté :</span> ${undetected}
+    </div>
+  `;
+
+  virusTotalSection.appendChild(categoriesContainer);
   virusTotalSection.classList.remove('hidden');
 }
 
