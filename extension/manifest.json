@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "BreachWatcher",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "Evaluez la fiabilité des sites. L'extension croise les données publiques, exécute plus de 90 tests de sécurité.",
   "icons": {
     "16": "icons/icon-16.png",
