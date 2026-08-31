@@ -116,14 +116,20 @@ function renderVirusTotal(vtInfo) {
   const categoriesContainer = document.createElement('div');
   categoriesContainer.className = 'vt-categories-container';
   categoriesContainer.style.cssText = 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; font-size: 0.85em;';
-  categoriesContainer.innerHTML = `
-    <div style="background: rgba(231, 76, 60, 0.1); border-left: 3px solid #e74c3c; padding: 6px 8px; border-radius: 4px;">
-      <span style="color: #e74c3c; font-weight: bold;">Malicieux :</span> ${malicious}
-    </div>
-    <div style="background: rgba(243, 156, 18, 0.1); border-left: 3px solid #f39c12; padding: 6px 8px; border-radius: 4px;">
-      <span style="color: #f39c12; font-weight: bold;">Suspect :</span> ${suspicious}
-    </div>
-  `;
+
+  const createVtCell = (label, value, bgColor, borderColor, textColor) => {
+    const cell = document.createElement('div');
+    cell.style.cssText = `background: ${bgColor}; border-left: 3px solid ${borderColor}; padding: 6px 8px; border-radius: 4px;`;
+    const span = document.createElement('span');
+    span.style.cssText = `color: ${textColor}; font-weight: bold;`;
+    span.textContent = label;
+    cell.appendChild(span);
+    cell.appendChild(document.createTextNode(' ' + String(value)));
+    return cell;
+  };
+
+  categoriesContainer.appendChild(createVtCell('Malicieux :', malicious, 'rgba(231, 76, 60, 0.1)', '#e74c3c', '#e74c3c'));
+  categoriesContainer.appendChild(createVtCell('Suspect :', suspicious, 'rgba(243, 156, 18, 0.1)', '#f39c12', '#f39c12'));
 
   virusTotalSection.appendChild(categoriesContainer);
   virusTotalSection.classList.remove('hidden');
