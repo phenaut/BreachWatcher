@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "BreachWatcher",
+  "version": "1.0.22",
+  "description": "Evaluez la fiabilité des sites. L'extension croise les données publiques, exécute plus de 90 tests de sécurité.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": [
+    "webNavigation",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://haveibeenpwned.com/*",
+    "https://news.google.com/*",
+    "https://frenchbreaches.com/feed.xml",
+    "https://www.virustotal.com/api/v3"
+  ],
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://haveibeenpwned.com https://news.google.com https://frenchbreaches.com https://www.virustotal.com;"
+  },
+  "background": {
+    "scripts": ["browser-polyfill.js", "background/background.js"]
+  },
+  "action": {
+    "default_title": "BreachWatcher",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png"
+    },
+    "default_popup": "popup/popup.html"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": false
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "breachwatcher@phenaut.dev",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": ["websiteContent"]
+      }
+    }
+  }
+}
