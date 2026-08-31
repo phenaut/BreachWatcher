@@ -1,0 +1,1 @@
+Fichier XPI pour FireFox
