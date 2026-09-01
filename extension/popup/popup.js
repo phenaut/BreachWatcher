@@ -163,8 +163,14 @@ async function loadUiLocale() {
     document.querySelector('#safeState .status-desc').textContent = getUiText().safeDesc;
     const dangerTitleEl = document.querySelector('#dangerState h2');
     if (dangerTitleEl) {
-      dangerTitleEl.innerHTML = `${getUiText().dangerTitle} (<span id="incidentCount">0</span>)`;
-      incidentCountEl = document.getElementById('incidentCount');
+      dangerTitleEl.textContent = getUiText().dangerTitle;
+      const countWrap = document.createElement('span');
+      countWrap.id = 'incidentCount';
+      countWrap.textContent = '0';
+      dangerTitleEl.appendChild(document.createTextNode(' ('));
+      dangerTitleEl.appendChild(countWrap);
+      dangerTitleEl.appendChild(document.createTextNode(')'));
+      incidentCountEl = countWrap;
     }
     document.querySelector('#dangerState .status-desc').textContent = getUiText().dangerDesc;
     document.querySelector('#unsupportedState h2').textContent = getUiText().unsupportedTitle;
