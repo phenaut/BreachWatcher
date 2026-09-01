@@ -28,7 +28,8 @@ const UI_TEXT = {
     press: 'Presse',
     malicious: 'Malicieux :',
     suspicious: 'Suspect :',
-    idk: 'Identifiant non détecté'
+    idk: 'Identifiant non détecté',
+    accountsAffected: 'comptes concernés'
   },
   US: {
     loading: 'Checking security data...',
@@ -59,7 +60,8 @@ const UI_TEXT = {
     press: 'Press',
     malicious: 'Malicious:',
     suspicious: 'Suspicious:',
-    idk: 'Identifier not detected'
+    idk: 'Identifier not detected',
+    accountsAffected: 'affected accounts'
   },
   DE: {
     loading: 'Sicherheitsdaten werden geprüft...',
@@ -90,7 +92,8 @@ const UI_TEXT = {
     press: 'Presse',
     malicious: 'Bösartig:',
     suspicious: 'Verdächtig:',
-    idk: 'Erkennung fehlgeschlagen'
+    idk: 'Erkennung fehlgeschlagen',
+    accountsAffected: 'betroffene Konten'
   }
 };
 
@@ -105,7 +108,7 @@ const dangerState = document.getElementById('dangerState');
 const unsupportedState = document.getElementById('unsupportedState');
 const errorState = document.getElementById('errorState');
 
-const incidentCountEl = document.getElementById('incidentCount');
+let incidentCountEl = document.getElementById('incidentCount');
 const dangerSummaryEl = document.getElementById('dangerSummary');
 const breachesSection = document.getElementById('breachesSection');
 const breachesListEl = document.getElementById('breachesList');
@@ -158,7 +161,11 @@ async function loadUiLocale() {
     document.querySelector('#loadingState p').textContent = getUiText().loading;
     document.querySelector('#safeState h2').textContent = getUiText().safeTitle;
     document.querySelector('#safeState .status-desc').textContent = getUiText().safeDesc;
-    document.querySelector('#dangerState h2').textContent = `${getUiText().dangerTitle} (<span id="incidentCount">0</span>)`;
+    const dangerTitleEl = document.querySelector('#dangerState h2');
+    if (dangerTitleEl) {
+      dangerTitleEl.innerHTML = `${getUiText().dangerTitle} (<span id="incidentCount">0</span>)`;
+      incidentCountEl = document.getElementById('incidentCount');
+    }
     document.querySelector('#dangerState .status-desc').textContent = getUiText().dangerDesc;
     document.querySelector('#unsupportedState h2').textContent = getUiText().unsupportedTitle;
     document.querySelector('#unsupportedState .status-desc').textContent = getUiText().unsupportedDesc;
@@ -348,7 +355,7 @@ function renderStatus(breachInfo, domain) {
       if (breach.pwnCount && breach.pwnCount > 0) {
         const countP = document.createElement('div');
         countP.className = 'pwn-count';
-        countP.textContent = `👥 ~${formatNumber(breach.pwnCount)} comptes concernés`;
+        countP.textContent = `👥 ~${formatNumber(breach.pwnCount)} ${getUiText().accountsAffected}`;
         li.appendChild(countP);
       }
 
