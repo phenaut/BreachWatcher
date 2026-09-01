@@ -3,6 +3,69 @@
  * Affiche les entrées loguées par background.js pour HIBP et FrenchBreaches.
  */
 
+const LOG_TEXT = {
+  FR: {
+    loading: 'Chargement…',
+    noResults: 'Aucune entrée ne correspond aux filtres sélectionnés.',
+    refresh: 'Actualiser',
+    export: 'Exporter CSV',
+    clear: 'Vider',
+    source: 'Source',
+    status: 'Statut',
+    domain: 'Domaine',
+    all: 'Toutes',
+    allStatus: 'Tous',
+    entries: 'entrées',
+    entry: 'entrée',
+    details: 'Afficher le détail',
+    breaches: 'Failles identifiées',
+    error: 'Erreur',
+    clearConfirm: 'Vider définitivement tout le journal des requêtes ?',
+    loadError: 'Impossible de charger le journal :',
+    deleteError: 'Erreur lors de la suppression :'
+  },
+  US: {
+    loading: 'Loading…',
+    noResults: 'No entries match the selected filters.',
+    refresh: 'Refresh',
+    export: 'Export CSV',
+    clear: 'Clear',
+    source: 'Source',
+    status: 'Status',
+    domain: 'Domain',
+    all: 'All',
+    allStatus: 'All',
+    entries: 'entries',
+    entry: 'entry',
+    details: 'Show details',
+    breaches: 'Identified breaches',
+    error: 'Error',
+    clearConfirm: 'Clear the entire request log permanently?',
+    loadError: 'Unable to load the log:',
+    deleteError: 'Deletion error:'
+  },
+  DE: {
+    loading: 'Lädt…',
+    noResults: 'Keine Einträge entsprechen den ausgewählten Filtern.',
+    refresh: 'Aktualisieren',
+    export: 'CSV exportieren',
+    clear: 'Leeren',
+    source: 'Quelle',
+    status: 'Status',
+    domain: 'Domain',
+    all: 'Alle',
+    allStatus: 'Alle',
+    entries: 'Einträge',
+    entry: 'Eintrag',
+    details: 'Details anzeigen',
+    breaches: 'Identifizierte Verstöße',
+    error: 'Fehler',
+    clearConfirm: 'Das gesamte Anforderungsprotokoll dauerhaft löschen?',
+    loadError: 'Protokoll konnte nicht geladen werden:',
+    deleteError: 'Fehler beim Löschen:'
+  }
+};
+
 const logsList    = document.getElementById('logsList');
 const logCount    = document.getElementById('logCount');
 const filterSource = document.getElementById('filterSource');
@@ -13,8 +76,47 @@ const exportBtn   = document.getElementById('exportBtn');
 const clearLogsBtn = document.getElementById('clearLogsBtn');
 
 let allLogs = [];
+let uiLocale = 'FR';
 
-// ── Helpers ──────────────────────────────────────────────────
+function detectDefaultCountryCode() {
+  try {
+    const nav = (navigator && navigator.language) ? navigator.language.toLowerCase() : '';
+    if (nav.startsWith('fr')) return 'FR';
+    if (nav.startsWith('de')) return 'DE';
+    if (nav.startsWith('en')) return 'US';
+  } catch (err) {
+    console.debug('[BreachWatcher] Impossible de détecter la langue du navigateur:', err);
+  }
+  return 'FR';
+}
+
+function normalizeCountryCode(code) {
+  const value = String(code || '').trim().toUpperCase();
+  return value === 'US' || value === 'DE' || value === 'FR' ? value : detectDefaultCountryCode();
+}
+
+function getText() {
+  return LOG_TEXT[uiLocale] || LOG_TEXT.FR;
+}
+
+async function applyUiLocale() {
+  try {
+    const res = await browser.storage.sync.get({ newsCountry: detectDefaultCountryCode() });
+    uiLocale = normalizeCountryCode(res.newsCountry);
+    document.documentElement.lang = uiLocale === 'US' ? 'en' : uiLocale === 'DE' ? 'de' : 'fr';
+    const t = getText();
+    refreshBtn.textContent = `↻ ${t.refresh}`;
+    exportBtn.textContent = `⇩ ${t.export}`;
+    clearLogsBtn.textContent = `🗑 ${t.clear}`;
+    document.querySelector('label[for="filterSource"]').textContent = t.source;
+    document.querySelector('label[for="filterStatus"]').textContent = t.status;
+    document.querySelector('label[for="filterDomain"]').textContent = t.domain;
+    filterSource.options[0].textContent = t.all;
+    filterStatus.options[0].textContent = t.allStatus;
+  } catch (err) {
+    console.warn('[BreachWatcher] Locale de journal non chargée:', err);
+  }
+}
 
 function formatDate(isoString) {
   if (!isoString) return '—';
@@ -64,18 +166,15 @@ function renderEmptyState(iconSymbol, messageText) {
   logsList.replaceChildren(container);
 }
 
-// ── Render ───────────────────────────────────────────────────
-
 function renderLogs(logs) {
   if (logs.length === 0) {
-    renderEmptyState('📋', 'Aucune entrée ne correspond aux filtres sélectionnés.');
-    logCount.textContent = '0 entrée';
+    renderEmptyState('📋', getText().noResults);
+    logCount.textContent = `0 ${getText().entries}`;
     return;
   }
 
-  logCount.textContent = `${logs.length} entrée${logs.length > 1 ? 's' : ''}`;
+  logCount.textContent = `${logs.length} ${logs.length > 1 ? getText().entries : getText().entry}`;
 
-  // Affichage du plus récent en premier
   const sorted = [...logs].reverse();
   const fragment = document.createDocumentFragment();
 
@@ -84,12 +183,10 @@ function renderLogs(logs) {
     const hasError = Boolean(entry.error);
     const hasDetail = hasBreaches || hasError;
 
-    // Conteneur principal
     const logEntry = document.createElement('div');
     logEntry.className = 'log-entry';
     logEntry.dataset.idx = idx;
 
-    // Ligne principale
     const logRow = document.createElement('div');
     logRow.className = 'log-row';
 
@@ -99,7 +196,6 @@ function renderLogs(logs) {
       logRow.setAttribute('aria-controls', `detail-${idx}`);
     }
 
-    // Colonnes
     const colDate = document.createElement('span');
     colDate.className = 'col-date';
     colDate.textContent = formatDate(entry.ts);
@@ -138,7 +234,7 @@ function renderLogs(logs) {
       toggleBtn.className = 'log-toggle';
       toggleBtn.setAttribute('aria-expanded', 'false');
       toggleBtn.setAttribute('aria-controls', `detail-${idx}`);
-      toggleBtn.title = 'Afficher le détail';
+      toggleBtn.title = getText().details;
       toggleBtn.textContent = '▶';
       colToggle.appendChild(toggleBtn);
     }
@@ -146,7 +242,6 @@ function renderLogs(logs) {
     logRow.append(colDate, colDomain, colSource, colStatus, colCount, colDuration, colToggle);
     logEntry.appendChild(logRow);
 
-    // Section Détail
     if (hasDetail) {
       const logDetail = document.createElement('div');
       logDetail.className = 'log-detail hidden';
@@ -158,7 +253,7 @@ function renderLogs(logs) {
 
         const label = document.createElement('div');
         label.className = 'log-detail-label';
-        label.textContent = 'Failles identifiées';
+        label.textContent = getText().breaches;
         breachSection.appendChild(label);
 
         entry.breaches.forEach(b => {
@@ -186,7 +281,7 @@ function renderLogs(logs) {
 
         const label = document.createElement('div');
         label.className = 'log-detail-label';
-        label.textContent = 'Erreur';
+        label.textContent = getText().error;
 
         const errorText = document.createElement('div');
         errorText.className = 'error-text';
@@ -198,7 +293,6 @@ function renderLogs(logs) {
 
       logEntry.appendChild(logDetail);
 
-      // Listeners pour l'ouverture/fermeture du panneau
       const toggleAction = () => {
         if (!toggleBtn) return;
         const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
@@ -247,10 +341,8 @@ function applyFilters() {
   renderLogs(filtered);
 }
 
-// ── Load logs ────────────────────────────────────────────────
-
 async function loadLogs() {
-  renderEmptyState('⏳', 'Chargement…');
+  renderEmptyState('⏳', getText().loading);
   logCount.textContent = '—';
 
   try {
@@ -262,28 +354,24 @@ async function loadLogs() {
       throw new Error((response && response.error) || 'Réponse inattendue');
     }
   } catch (err) {
-    renderEmptyState('⚠️', `Impossible de charger le journal : ${err.message}`);
+    renderEmptyState('⚠️', `${getText().loadError} ${err.message}`);
     logCount.textContent = 'Erreur';
   }
 }
 
-// ── Clear logs ───────────────────────────────────────────────
-
 async function clearLogs() {
-  if (!confirm('Vider définitivement tout le journal des requêtes ?')) return;
+  if (!confirm(getText().clearConfirm)) return;
   clearLogsBtn.disabled = true;
   try {
     await browser.runtime.sendMessage({ action: 'clearLogs' });
     allLogs = [];
     renderLogs([]);
   } catch (err) {
-    alert('Erreur lors de la suppression : ' + err.message);
+    alert(`${getText().deleteError} ${err.message}`);
   } finally {
     clearLogsBtn.disabled = false;
   }
 }
-
-// ── Export CSV ───────────────────────────────────────────────
 
 function exportCsv() {
   const srcFilter = filterSource.value;
@@ -318,16 +406,14 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 
-// ── Event listeners ──────────────────────────────────────────
-
 refreshBtn.addEventListener('click', loadLogs);
 clearLogsBtn.addEventListener('click', clearLogs);
 exportBtn.addEventListener('click', exportCsv);
-
 filterSource.addEventListener('change', applyFilters);
 filterStatus.addEventListener('change', applyFilters);
 filterDomain.addEventListener('input', applyFilters);
 
-// ── Init ─────────────────────────────────────────────────────
-
-document.addEventListener('DOMContentLoaded', loadLogs);
+document.addEventListener('DOMContentLoaded', async () => {
+  await applyUiLocale();
+  loadLogs();
+});

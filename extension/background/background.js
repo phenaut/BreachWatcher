@@ -216,9 +216,10 @@ function parseArticleTitleAndSource(rawTitle) {
   return { title: rawTitle, source: 'Presse' };
 }
 
-async function fetchPublicCyberNews(domain, brand) {
+async function fetchPublicCyberNews(domain, brand, localeSettings) {
   if (!domain && !brand) return [];
 
+  const locale = localeSettings || await getNewsLocaleSettings();
   const queryVariants = [
     `${brand || domain} pirat`,
     `${brand || domain} fuite de données`,
@@ -233,7 +234,7 @@ async function fetchPublicCyberNews(domain, brand) {
 
   for (let i = 0; i < queryVariants.length; i++) {
     const query = encodeURIComponent(queryVariants[i]);
-    const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=fr&gl=FR&ceid=FR:fr`;
+    const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=${locale.lang}&gl=${locale.country}&ceid=${locale.ceid}`;
 
     try {
       const response = await fetch(rssUrl, {
@@ -325,7 +326,39 @@ async function appendLog(entry) {
 // ─────────────────────────────────────────────────────────────
 
 const DEFAULT_CACHE_DAYS = 7;
+const NEWS_COUNTRY_OPTIONS = {
+  FR: { label: 'Français (FR)', lang: 'fr', country: 'FR', ceid: 'FR:fr' },
+  US: { label: 'English (US)', lang: 'en', country: 'US', ceid: 'US:en' },
+  DE: { label: 'Deutsch (DE)', lang: 'de', country: 'DE', ceid: 'DE:de' }
+};
 const memoryCache = new Map();
+
+function detectDefaultCountryCode() {
+  try {
+    const nav = (navigator && navigator.language) ? navigator.language.toLowerCase() : '';
+    if (nav.startsWith('fr')) return 'FR';
+    if (nav.startsWith('de')) return 'DE';
+    if (nav.startsWith('en')) return 'US';
+  } catch (err) {
+    console.debug('[BreachWatcher] Impossible de détecter la langue du navigateur:', err);
+  }
+  return 'FR';
+}
+
+function normalizeCountryCode(code) {
+  const value = String(code || '').trim().toUpperCase();
+  return NEWS_COUNTRY_OPTIONS[value] ? value : detectDefaultCountryCode();
+}
+
+async function getNewsLocaleSettings() {
+  try {
+    const res = await browser.storage.sync.get({ newsCountry: detectDefaultCountryCode() });
+    const normalized = normalizeCountryCode(res.newsCountry);
+    return NEWS_COUNTRY_OPTIONS[normalized] || NEWS_COUNTRY_OPTIONS.FR;
+  } catch (err) {
+    return NEWS_COUNTRY_OPTIONS[detectDefaultCountryCode()] || NEWS_COUNTRY_OPTIONS.FR;
+  }
+}
 
 async function getCacheTtlMs() {
   try {
@@ -667,6 +700,7 @@ function isRelevantSecurityArticle(title, brand) {
 async function analyzeDomain(domain) {
   var norm = domain.toLowerCase();
   var brand = extractBrandName(norm);
+  var localeSettings = await getNewsLocaleSettings();
 
   // Étape 1 : Brèches vérifiées (HIBP + FrenchBreaches + base embarquée) — en parallèle avec le RSS
   var hibpPromise = fetchHIBPBreaches(norm);
@@ -676,7 +710,7 @@ async function analyzeDomain(domain) {
 
   // Étape 2 : Google News — toujours interrogé si brand suffisamment distinctif (≥ 4 chars)
   var newsPromise = (brand && brand.length >= 4)
-    ? fetchPublicCyberNews(norm, brand)
+    ? fetchPublicCyberNews(norm, brand, localeSettings)
     : Promise.resolve([]);
 
   var hibpBreaches = await hibpPromise;

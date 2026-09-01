@@ -1,4 +1,99 @@
-// Références DOM
+const UI_TEXT = {
+  FR: {
+    loading: 'Vérification des données de sécurité...',
+    safeTitle: 'Aucun incident répertorié',
+    safeDesc: 'Aucun article de presse récent ou rapport de fuite de données n’a été trouvé pour ce site.',
+    dangerTitle: 'Piratages signalés',
+    dangerDesc: 'Des incidents ou des compromissions ont été documentés pour ce site.',
+    domainLabel: 'Domaine analysé :',
+    unsupportedTitle: 'Page non vérifiable',
+    unsupportedDesc: 'BreachWatcher ne vérifie que les sites web standards accessibles via HTTP/HTTPS.',
+    errorTitle: 'Erreur de communication',
+    errorDesc: 'Impossible de récupérer les données pour cet onglet.',
+    breachSection: '🛡️ Faille référencée',
+    breachPlaceholder: 'Aucune fuite référencée détectée',
+    vtSection: '🧪 VirusTotal',
+    vtThreatLow: 'Niveau de menace : faible',
+    vtThreatModerate: 'Niveau de menace : modéré',
+    vtThreatHigh: 'Niveau de menace : élevé',
+    newsSection: '📰 Articles de presse',
+    newsPlaceholder: 'Aucun article de presse associé détecté',
+    cacheLive: 'En direct',
+    settings: '⚙️ Réglages',
+    refreshTitle: 'Rafraîchir l’analyse',
+    unknownDomain: 'Non identifiable',
+    internalPage: 'Page locale / interne',
+    noInfo: 'Aucune information disponible.',
+    articleDefault: 'Article sans titre',
+    press: 'Presse',
+    malicious: 'Malicieux :',
+    suspicious: 'Suspect :',
+    idk: 'Identifiant non détecté'
+  },
+  US: {
+    loading: 'Checking security data...',
+    safeTitle: 'No incidents recorded',
+    safeDesc: 'No recent press article or data breach report was found for this site.',
+    dangerTitle: 'Breaches reported',
+    dangerDesc: 'Incidents or compromises have been documented for this site.',
+    domainLabel: 'Analyzed domain:',
+    unsupportedTitle: 'Non-checkable page',
+    unsupportedDesc: 'BreachWatcher only checks standard web pages accessible via HTTP/HTTPS.',
+    errorTitle: 'Communication error',
+    errorDesc: 'Unable to retrieve data for this tab.',
+    breachSection: '🛡️ Referenced breach',
+    breachPlaceholder: 'No referenced breach detected',
+    vtSection: '🧪 VirusTotal',
+    vtThreatLow: 'Threat level: low',
+    vtThreatModerate: 'Threat level: moderate',
+    vtThreatHigh: 'Threat level: high',
+    newsSection: '📰 News articles',
+    newsPlaceholder: 'No related news article detected',
+    cacheLive: 'Live',
+    settings: '⚙️ Settings',
+    refreshTitle: 'Refresh analysis',
+    unknownDomain: 'Unidentified',
+    internalPage: 'Local / internal page',
+    noInfo: 'No information available.',
+    articleDefault: 'Untitled article',
+    press: 'Press',
+    malicious: 'Malicious:',
+    suspicious: 'Suspicious:',
+    idk: 'Identifier not detected'
+  },
+  DE: {
+    loading: 'Sicherheitsdaten werden geprüft...',
+    safeTitle: 'Keine Vorfälle erfasst',
+    safeDesc: 'Für diese Website wurde kein aktueller Presseartikel oder Datenleck gefunden.',
+    dangerTitle: 'Gemeldete Vorfälle',
+    dangerDesc: 'Für diese Website wurden Vorfälle oder Sicherheitsprobleme dokumentiert.',
+    domainLabel: 'Analysierte Domain:',
+    unsupportedTitle: 'Nicht prüfbare Seite',
+    unsupportedDesc: 'BreachWatcher prüft nur Standard-Webseiten, die über HTTP/HTTPS erreichbar sind.',
+    errorTitle: 'Kommunikationsfehler',
+    errorDesc: 'Die Daten für diese Registerkarte konnten nicht abgerufen werden.',
+    breachSection: '🛡️ Gemeldeter Vorfall',
+    breachPlaceholder: 'Kein gemeldeter Verstoß erkannt',
+    vtSection: '🧪 VirusTotal',
+    vtThreatLow: 'Bedrohungsstufe: niedrig',
+    vtThreatModerate: 'Bedrohungsstufe: mittel',
+    vtThreatHigh: 'Bedrohungsstufe: hoch',
+    newsSection: '📰 Nachrichtenartikel',
+    newsPlaceholder: 'Kein zugehöriger Nachrichtenartikel erkannt',
+    cacheLive: 'Live',
+    settings: '⚙️ Einstellungen',
+    refreshTitle: 'Analyse aktualisieren',
+    unknownDomain: 'Unbekannt',
+    internalPage: 'Lokale / interne Seite',
+    noInfo: 'Keine Informationen verfügbar.',
+    articleDefault: 'Unbenannter Artikel',
+    press: 'Presse',
+    malicious: 'Bösartig:',
+    suspicious: 'Verdächtig:',
+    idk: 'Erkennung fehlgeschlagen'
+  }
+};
+
 const currentDomainEl = document.getElementById('currentDomain');
 const refreshBtn = document.getElementById('refreshBtn');
 const optionsLink = document.getElementById('optionsLink');
@@ -26,6 +121,61 @@ const articlesListEl = document.getElementById('articlesList');
 const articlesPlaceholder = document.getElementById('articlesPlaceholder');
 const errorMessageEl = document.getElementById('errorMessage');
 
+let uiLocale = 'FR';
+
+function detectDefaultCountryCode() {
+  try {
+    const nav = (navigator && navigator.language) ? navigator.language.toLowerCase() : '';
+    if (nav.startsWith('fr')) return 'FR';
+    if (nav.startsWith('de')) return 'DE';
+    if (nav.startsWith('en')) return 'US';
+  } catch (err) {
+    console.debug('[BreachWatcher] Impossible de détecter la langue du navigateur:', err);
+  }
+  return 'FR';
+}
+
+function normalizeCountryCode(code) {
+  const value = String(code || '').trim().toUpperCase();
+  return value === 'US' || value === 'DE' || value === 'FR' ? value : detectDefaultCountryCode();
+}
+
+function getUiText() {
+  return UI_TEXT[uiLocale] || UI_TEXT.FR;
+}
+
+async function loadUiLocale() {
+  try {
+    const res = await browser.storage.sync.get({ newsCountry: detectDefaultCountryCode() });
+    uiLocale = normalizeCountryCode(res.newsCountry);
+    document.documentElement.lang = uiLocale === 'US' ? 'en' : uiLocale === 'DE' ? 'de' : 'fr';
+    const domainLabel = document.querySelector('.label');
+    if (domainLabel) domainLabel.textContent = getUiText().domainLabel;
+    const refreshTitle = refreshBtn.getAttribute('title');
+    if (refreshTitle) refreshBtn.title = getUiText().refreshTitle;
+    const optionsTitle = optionsLink.textContent.trim();
+    if (optionsTitle) optionsLink.textContent = getUiText().settings;
+    document.querySelector('#loadingState p').textContent = getUiText().loading;
+    document.querySelector('#safeState h2').textContent = getUiText().safeTitle;
+    document.querySelector('#safeState .status-desc').textContent = getUiText().safeDesc;
+    document.querySelector('#dangerState h2').textContent = `${getUiText().dangerTitle} (<span id="incidentCount">0</span>)`;
+    document.querySelector('#dangerState .status-desc').textContent = getUiText().dangerDesc;
+    document.querySelector('#unsupportedState h2').textContent = getUiText().unsupportedTitle;
+    document.querySelector('#unsupportedState .status-desc').textContent = getUiText().unsupportedDesc;
+    document.querySelector('#errorState h2').textContent = getUiText().errorTitle;
+    document.querySelector('#errorState .status-desc').textContent = getUiText().errorDesc;
+    document.querySelector('#breachesSection h3').textContent = getUiText().breachSection;
+    document.querySelector('#articlesSection h3').textContent = getUiText().newsSection;
+    document.querySelector('#virusTotalSection h3').textContent = getUiText().vtSection;
+    document.querySelector('#breachesPlaceholder').textContent = getUiText().breachPlaceholder;
+    document.querySelector('#articlesPlaceholder').textContent = getUiText().newsPlaceholder;
+    const vtTitle = document.querySelector('.vt-title');
+    if (vtTitle) vtTitle.textContent = uiLocale === 'US' ? 'Reputation thermometer' : uiLocale === 'DE' ? 'Reputationsthermometer' : 'Thermomètre de réputation';
+  } catch (err) {
+    console.warn('[BreachWatcher] Locale non chargée:', err);
+  }
+}
+
 /**
  * Cache tous les panneaux d'état.
  */
@@ -47,7 +197,8 @@ function formatDate(dateString) {
   try {
     const d = new Date(dateString);
     if (isNaN(d.getTime())) return dateString;
-    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+    const locale = uiLocale === 'US' ? 'en-US' : uiLocale === 'DE' ? 'de-DE' : 'fr-FR';
+    return d.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
   } catch {
     return dateString;
   }
@@ -60,7 +211,8 @@ function formatDate(dateString) {
  */
 function formatNumber(num) {
   if (!num) return '0';
-  return new Intl.NumberFormat('fr-FR').format(num);
+  const locale = uiLocale === 'US' ? 'en-US' : uiLocale === 'DE' ? 'de-DE' : 'fr-FR';
+  return new Intl.NumberFormat(locale).format(num);
 }
 
 function renderVirusTotal(vtInfo) {
@@ -69,11 +221,8 @@ function renderVirusTotal(vtInfo) {
     return;
   }
 
-  // Nettoyage préalable d'un éventuel bloc de détails déjà injecté
   const existingDetails = virusTotalSection.querySelector('.vt-categories-container');
-  if (existingDetails) {
-    existingDetails.remove();
-  }
+  if (existingDetails) existingDetails.remove();
 
   if (vtInfo.keyMissing) {
     virusTotalSection.classList.add('hidden');
@@ -96,13 +245,13 @@ function renderVirusTotal(vtInfo) {
   vtScoreBar.style.width = `${ratio}%`;
 
   if (score === 0) {
-    vtThreatLevel.textContent = 'Niveau de menace : faible';
+    vtThreatLevel.textContent = getUiText().vtThreatLow;
     vtScoreBar.style.background = 'linear-gradient(90deg, #2ecc71 0%, #2ecc71 100%)';
   } else if (score < 5) {
-    vtThreatLevel.textContent = 'Niveau de menace : modéré';
+    vtThreatLevel.textContent = getUiText().vtThreatModerate;
     vtScoreBar.style.background = 'linear-gradient(90deg, #f39c12 0%, #f39c12 100%)';
   } else {
-    vtThreatLevel.textContent = 'Niveau de menace : élevé';
+    vtThreatLevel.textContent = getUiText().vtThreatHigh;
     vtScoreBar.style.background = 'linear-gradient(90deg, #e74c3c 0%, #e74c3c 100%)';
   }
 
@@ -112,7 +261,7 @@ function renderVirusTotal(vtInfo) {
   } else {
     vtSummary.classList.add('hidden');
   }
-  // Injection du bloc d'affichage des catégories sous la barre / résumé
+
   const categoriesContainer = document.createElement('div');
   categoriesContainer.className = 'vt-categories-container';
   categoriesContainer.style.cssText = 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; font-size: 0.85em;';
@@ -128,8 +277,8 @@ function renderVirusTotal(vtInfo) {
     return cell;
   };
 
-  categoriesContainer.appendChild(createVtCell('Malicieux :', malicious, 'rgba(231, 76, 60, 0.1)', '#e74c3c', '#e74c3c'));
-  categoriesContainer.appendChild(createVtCell('Suspect :', suspicious, 'rgba(243, 156, 18, 0.1)', '#f39c12', '#f39c12'));
+  categoriesContainer.appendChild(createVtCell(getUiText().malicious, malicious, 'rgba(231, 76, 60, 0.1)', '#e74c3c', '#e74c3c'));
+  categoriesContainer.appendChild(createVtCell(getUiText().suspicious, suspicious, 'rgba(243, 156, 18, 0.1)', '#f39c12', '#f39c12'));
 
   virusTotalSection.appendChild(categoriesContainer);
   virusTotalSection.classList.remove('hidden');
@@ -137,10 +286,10 @@ function renderVirusTotal(vtInfo) {
 
 function renderStatus(breachInfo, domain) {
   hideAllStates();
-  currentDomainEl.textContent = domain || 'Non identifiable';
+  currentDomainEl.textContent = domain || getUiText().unknownDomain;
 
   if (!breachInfo) {
-    errorMessageEl.textContent = 'Aucune information disponible.';
+    errorMessageEl.textContent = getUiText().noInfo;
     errorState.classList.remove('hidden');
     return;
   }
@@ -153,9 +302,9 @@ function renderStatus(breachInfo, domain) {
 
   if (breachInfo.cachedAt) {
     const cachedDate = new Date(breachInfo.cachedAt);
-    cacheNoticeEl.textContent = `Cache: ${cachedDate.toLocaleTimeString('fr-FR')}`;
+    cacheNoticeEl.textContent = `Cache: ${cachedDate.toLocaleTimeString(uiLocale === 'US' ? 'en-US' : uiLocale === 'DE' ? 'de-DE' : 'fr-FR')}`;
   } else {
-    cacheNoticeEl.textContent = 'En direct';
+    cacheNoticeEl.textContent = getUiText().cacheLive;
   }
 
   const breaches = breachInfo.breaches || [];
@@ -165,7 +314,6 @@ function renderStatus(breachInfo, domain) {
   const hasIncident = (breaches.length > 0) || breachInfo.hasBreach || (vtScore > 0);
   const totalCount = breachInfo.count || (breaches.length + (breachInfo.qualifiedNewsCount || 0));
 
-  // 1. Afficher l'état global (safe ou danger)
   if (hasIncident) {
     incidentCountEl.textContent = String(totalCount);
     dangerState.classList.remove('hidden');
@@ -175,7 +323,6 @@ function renderStatus(breachInfo, domain) {
     dangerState.classList.add('hidden');
   }
 
-  // 2. BLOC 1 : Faille référencée
   breachesSection.classList.remove('hidden');
   if (breaches.length > 0) {
     breachesListEl.innerHTML = '';
@@ -233,10 +380,8 @@ function renderStatus(breachInfo, domain) {
     breachesPlaceholder.classList.remove('hidden');
   }
 
-  // 3. BLOC 2 : VirusTotal
   renderVirusTotal(vtInfo);
 
-  // 4. BLOC 3 : Articles de presse
   articlesSection.classList.remove('hidden');
   if (articles.length > 0) {
     articlesListEl.innerHTML = '';
@@ -249,7 +394,7 @@ function renderStatus(breachInfo, domain) {
 
       const link = document.createElement('a');
       link.href = article.url || '#';
-      link.textContent = article.title || 'Article sans titre';
+      link.textContent = article.title || getUiText().articleDefault;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       titleDiv.appendChild(link);
@@ -259,7 +404,7 @@ function renderStatus(breachInfo, domain) {
 
       const sourceSpan = document.createElement('span');
       sourceSpan.className = 'article-source';
-      sourceSpan.textContent = article.source || 'Presse';
+      sourceSpan.textContent = article.source || getUiText().press;
 
       const dateSpan = document.createElement('span');
       dateSpan.className = 'article-date';
@@ -280,10 +425,6 @@ function renderStatus(breachInfo, domain) {
   }
 }
 
-/**
- * Charge l'état de l'onglet actif.
- * @param {boolean} forceRefresh
- */
 async function loadCurrentTab(forceRefresh = false) {
   hideAllStates();
   loadingState.classList.remove('hidden');
@@ -298,10 +439,10 @@ async function loadCurrentTab(forceRefresh = false) {
 
     if (!response || !response.success) {
       if (response && response.reason === 'unsupported_url') {
-        currentDomainEl.textContent = 'Page locale / interne';
+        currentDomainEl.textContent = getUiText().internalPage;
         unsupportedState.classList.remove('hidden');
       } else {
-        errorMessageEl.textContent = response?.error || 'Impossible de récupérer le statut de cet onglet.';
+        errorMessageEl.textContent = response?.error || getUiText().errorDesc;
         errorState.classList.remove('hidden');
       }
       return;
@@ -315,7 +456,6 @@ async function loadCurrentTab(forceRefresh = false) {
   }
 }
 
-// Événements
 refreshBtn.addEventListener('click', () => {
   loadCurrentTab(true);
 });
@@ -329,7 +469,7 @@ optionsLink.addEventListener('click', (e) => {
   }
 });
 
-// Initialisation au chargement du DOM
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadUiLocale();
   loadCurrentTab(false);
 });
