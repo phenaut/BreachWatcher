@@ -7,4 +7,4 @@ Cliquez sur le lien depuis FireFox (copiez le lien Firefox et collez le dans la 
 [https://chromewebstore.google.com/detail/breachwatcher/oglhnogehdopccplhdkomijcicaadebi?authuser=0&hl=fr](https://chromewebstore.google.com/detail/breachwatcher/oglhnogehdopccplhdkomijcicaadebi?authuser=0&hl=fr)
 
 ## Extension pour Edge
-à venir
+[https://microsoftedge.microsoft.com/addons/detail/breachwatcher/lbclppganklengjklfaeppldcgcbepgb](https://microsoftedge.microsoft.com/addons/detail/breachwatcher/lbclppganklengjklfaeppldcgcbepgb)
