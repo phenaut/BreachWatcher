@@ -326,6 +326,7 @@ async function appendLog(entry) {
 // ─────────────────────────────────────────────────────────────
 
 const DEFAULT_CACHE_DAYS = 7;
+const DEFAULT_HUD_ENABLED = true;
 const NEWS_COUNTRY_OPTIONS = {
   FR: { label: 'Français (FR)', lang: 'fr', country: 'FR', ceid: 'FR:fr' },
   US: { label: 'English (US)', lang: 'en', country: 'US', ceid: 'US:en' },
@@ -378,6 +379,15 @@ async function getVirusTotalApiKey() {
     return key;
   } catch {
     return '';
+  }
+}
+
+async function isHudEnabled() {
+  try {
+    const res = await browser.storage.sync.get({ hudEnabled: DEFAULT_HUD_ENABLED });
+    return res.hudEnabled !== false;
+  } catch {
+    return DEFAULT_HUD_ENABLED;
   }
 }
 
@@ -931,7 +941,7 @@ async function processTabNavigation(tabId, url) {
   await updateTabBadge(tabId, breachInfo);
 
   // ── HUD : afficher uniquement sur un nouveau domaine (par session) ──
-  if (!seenDomains.has(domain)) {
+  if (await isHudEnabled() && !seenDomains.has(domain)) {
     seenDomains.add(domain);
     const level = computeHudLevel(breachInfo);
     browser.scripting.executeScript({

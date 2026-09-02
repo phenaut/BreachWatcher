@@ -28,6 +28,9 @@ const OPTION_TEXT = {
     vtCreate: 'Créer ma clé API publique VirusTotal',
     vtDocs: 'Documentation API publique',
     vtHelper: 'Utilisée pour afficher un score de réputation VirusTotal dans la popup.',
+    hudLabel: "Afficher le HUD à l'arrivée sur un domaine :",
+    hudOn: 'Activé',
+    hudOff: 'Désactivé',
     saveSuccess: 'Préférences enregistrées ! Cache fixé à {days} jours. Pays de référence : {country}.',
     saveError: 'Erreur lors de l\'enregistrement : {error}',
     cacheClearOk: 'Cache local vidé avec succès ({count} domaine(s) purgé(s)) !',
@@ -61,6 +64,9 @@ const OPTION_TEXT = {
     vtCreate: 'Create my public VirusTotal API key',
     vtDocs: 'Public API documentation',
     vtHelper: 'Used to display a VirusTotal reputation score in the popup.',
+    hudLabel: 'Show the HUD when arriving on a domain:',
+    hudOn: 'Enabled',
+    hudOff: 'Disabled',
     saveSuccess: 'Preferences saved! Cache set to {days} days. Reference country: {country}.',
     saveError: 'Error while saving: {error}',
     cacheClearOk: 'Local cache cleared successfully ({count} domain(s) purged)!',
@@ -94,6 +100,9 @@ const OPTION_TEXT = {
     vtCreate: 'Meinen öffentlichen VirusTotal-API-Schlüssel erstellen',
     vtDocs: 'Öffentliche API-Dokumentation',
     vtHelper: 'Wird verwendet, um in der Popup einen VirusTotal-Reputationswert anzuzeigen.',
+    hudLabel: 'HUD beim Aufrufen einer Domain anzeigen:',
+    hudOn: 'Aktiviert',
+    hudOff: 'Deaktiviert',
     saveSuccess: 'Einstellungen gespeichert! Cache auf {days} Tage gesetzt. Referenzland: {country}.',
     saveError: 'Fehler beim Speichern: {error}',
     cacheClearOk: 'Lokaler Cache erfolgreich gelöscht ({count} Domain(en) entfernt)!',
@@ -110,6 +119,8 @@ const OPTION_TEXT = {
 const cacheDaysInput = document.getElementById('cacheDays');
 const virustotalApiKeyInput = document.getElementById('virustotalApiKey');
 const newsCountrySelect = document.getElementById('newsCountry');
+const hudEnabledInput = document.getElementById('hudEnabled');
+const hudEnabledStatus = document.getElementById('hudEnabledStatus');
 const saveBtn = document.getElementById('saveBtn');
 const clearCacheBtn = document.getElementById('clearCacheBtn');
 const statusMessage = document.getElementById('statusMessage');
@@ -190,6 +201,10 @@ function applyOptionsLocale(localeCode) {
   const newsLabel = document.querySelector('label[for="newsCountry"]');
   if (newsLabel) newsLabel.textContent = text.newsTitle;
 
+  const hudLabel = document.getElementById('hudEnabledLabel');
+  if (hudLabel) hudLabel.textContent = text.hudLabel;
+  if (hudEnabledStatus) hudEnabledStatus.textContent = hudEnabledInput.checked ? text.hudOn : text.hudOff;
+
   const clearCacheText = document.getElementById('clearCacheBtn');
   if (clearCacheText) clearCacheText.textContent = text.clearCache;
 
@@ -242,12 +257,14 @@ async function loadOptions() {
     const data = await browser.storage.sync.get({
       cacheDays: DEFAULT_CACHE_DAYS,
       virustotalApiKey: '',
-      newsCountry: detectDefaultCountryCode()
+      newsCountry: detectDefaultCountryCode(),
+      hudEnabled: true
     });
     const storedKey = (data.virustotalApiKey || '').trim();
     const newsCountry = normalizeCountryCode(data.newsCountry);
     cacheDaysInput.value = data.cacheDays || DEFAULT_CACHE_DAYS;
     newsCountrySelect.value = newsCountry;
+    hudEnabledInput.checked = data.hudEnabled !== false;
     applyOptionsLocale(newsCountry);
     virustotalApiKeyInput.dataset.realValue = storedKey;
     virustotalApiKeyInput.value = storedKey ? maskApiKey(storedKey) : '';
@@ -282,9 +299,10 @@ async function saveOptions() {
     ? currentValue
     : (realValue || '');
   const newsCountry = normalizeCountryCode(newsCountrySelect.value || detectDefaultCountryCode());
+  const hudEnabled = hudEnabledInput.checked;
 
   try {
-    await browser.storage.sync.set({ cacheDays: days, virustotalApiKey, newsCountry });
+    await browser.storage.sync.set({ cacheDays: days, virustotalApiKey, newsCountry, hudEnabled });
     applyOptionsLocale(newsCountry);
     virustotalApiKeyInput.dataset.realValue = virustotalApiKey;
     virustotalApiKeyInput.value = virustotalApiKey ? maskApiKey(virustotalApiKey) : '';
@@ -344,6 +362,10 @@ async function clearLogs() {
 extensionVersion.textContent = browser.runtime.getManifest().version;
 
 saveBtn.addEventListener('click', saveOptions);
+hudEnabledInput.addEventListener('change', () => {
+  const text = getOptionText();
+  hudEnabledStatus.textContent = hudEnabledInput.checked ? text.hudOn : text.hudOff;
+});
 clearCacheBtn.addEventListener('click', clearCache);
 openLogsBtn.addEventListener('click', openLogs);
 clearLogsBtn.addEventListener('click', clearLogs);
