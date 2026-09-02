@@ -82,18 +82,18 @@
       });
     });
 
-    // ── Fade-out à 5500ms ─────────────────────────────────────────────────────
+    // ── Fade-out à 7000ms ─────────────────────────────────────────────────────
     setTimeout(function () {
       wrapper.style.setProperty('transition', 'opacity 0.4s ease', 'important');
       wrapper.style.setProperty('opacity', '0', 'important');
-    }, 5500);
+    }, 7000);
 
-    // ── Suppression à 5900ms ──────────────────────────────────────────────────
+    // ── Suppression à 7400ms ──────────────────────────────────────────────────
     setTimeout(function () {
       if (wrapper && wrapper.parentNode) {
         wrapper.parentNode.removeChild(wrapper);
       }
-    }, 5900);
+    }, 7400);
   });
 
 }());
