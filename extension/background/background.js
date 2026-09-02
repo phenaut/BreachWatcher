@@ -327,6 +327,7 @@ async function appendLog(entry) {
 
 const DEFAULT_CACHE_DAYS = 7;
 const DEFAULT_HUD_ENABLED = true;
+const ANALYSIS_CACHE_VERSION = 2;
 const NEWS_COUNTRY_OPTIONS = {
   FR: { label: 'Français (FR)', lang: 'fr', country: 'FR', ceid: 'FR:fr' },
   US: { label: 'English (US)', lang: 'en', country: 'US', ceid: 'US:en' },
@@ -708,9 +709,19 @@ function isRelevantSecurityArticle(title, brand) {
   return tNorm.includes('cyber') || tNorm.includes('attaque') || tNorm.includes('pirat') || tNorm.includes('hack');
 }
 
+function isWithinLastFiveYears(dateValue, now) {
+  if (!dateValue) return false;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return false;
+  const cutoff = new Date(now);
+  cutoff.setFullYear(cutoff.getFullYear() - 5);
+  return date.getTime() >= cutoff.getTime() && date.getTime() <= now;
+}
+
 async function analyzeDomain(domain) {
   var norm = domain.toLowerCase();
   var brand = extractBrandName(norm);
+  var now = Date.now();
   var localeSettings = await getNewsLocaleSettings();
 
   // Étape 1 : Brèches vérifiées (HIBP + FrenchBreaches + base embarquée) — en parallèle avec le RSS
@@ -747,19 +758,25 @@ async function analyzeDomain(domain) {
     }
   }
 
+  allBreaches = allBreaches.filter(function(breach) {
+    return isWithinLastFiveYears(breach.breachDate, now);
+  });
+
   // Étape 3 : Filtrage strict des articles RSS
   // Un article n'est retenu QUE si : brand dans le titre ET mot-clé sécurité dans le titre
   var rawArticles = await newsPromise;
   var qualifiedArticles = rawArticles.filter(function(art) {
-    return isRelevantSecurityArticle(art.title, brand);
+    return isRelevantSecurityArticle(art.title, brand)
+      && isWithinLastFiveYears(art.publishedAt, now);
   });
 
-  // Intégration des articles de la base embarquée (toujours fiables, pas de filtre)
+  // Intégration des articles de la base embarquée
   var allArticles = [].concat(qualifiedArticles);
   if (KNOWN_BREACHES[norm] && KNOWN_BREACHES[norm].articles) {
     var knownArts = KNOWN_BREACHES[norm].articles;
     for (var i = 0; i < knownArts.length; i++) {
-      if (!allArticles.some(function(a) { return a.title === knownArts[i].title; })) {
+      if (isWithinLastFiveYears(knownArts[i].publishedAt, now)
+          && !allArticles.some(function(a) { return a.title === knownArts[i].title; })) {
         allArticles.push(knownArts[i]);
       }
     }
@@ -789,7 +806,7 @@ async function analyzeDomain(domain) {
 async function getDomainStatus(domain, forceRefresh) {
   if (!domain) return { breaches: [], count: 0, hasBreach: false };
   const norm = domain.toLowerCase();
-  const cacheKey = `cache_${norm}`;
+  const cacheKey = `cache_v${ANALYSIS_CACHE_VERSION}_${norm}`;
   const ttlMs = await getCacheTtlMs();
 
   if (!forceRefresh && memoryCache.has(norm)) {
