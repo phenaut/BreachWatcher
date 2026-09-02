@@ -332,6 +332,7 @@ const NEWS_COUNTRY_OPTIONS = {
   DE: { label: 'Deutsch (DE)', lang: 'de', country: 'DE', ceid: 'DE:de' }
 };
 const memoryCache = new Map();
+const seenDomains = new Set();
 
 function detectDefaultCountryCode() {
   try {
@@ -904,6 +905,21 @@ async function updateTabBadge(tabId, breachInfo) {
   }
 }
 
+function computeHudLevel(breachInfo) {
+  if (!breachInfo) return 0;
+  const hasBreach = Number(breachInfo.breachCount || 0) > 0;
+  const hasNews   = Number(breachInfo.qualifiedNewsCount || 0) > 0;
+  const vt        = breachInfo.virusTotal || null;
+  const hasVT     = vt && vt.enabled && !vt.keyMissing
+                    && (Number(vt.malicious || 0) + Number(vt.suspicious || 0)) > 0;
+
+  if ((hasBreach && hasVT) || (hasNews && hasVT)) return 5;
+  if (hasVT)     return 4;
+  if (hasBreach) return 3;
+  if (hasNews)   return 2;
+  return 1;
+}
+
 async function processTabNavigation(tabId, url) {
   if (!isCheckableUrl(url)) {
     await updateTabBadge(tabId, { hasBreach: false, count: 0 });
@@ -913,6 +929,29 @@ async function processTabNavigation(tabId, url) {
   if (!domain) return;
   const breachInfo = await getDomainStatus(domain, false);
   await updateTabBadge(tabId, breachInfo);
+
+  // ── HUD : afficher uniquement sur un nouveau domaine (par session) ──
+  if (!seenDomains.has(domain)) {
+    seenDomains.add(domain);
+    const level = computeHudLevel(breachInfo);
+    browser.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['content/hud-iframe.js']
+    }).then(function () {
+      setTimeout(function () {
+        browser.tabs.sendMessage(tabId, {
+          action: 'showHUD',
+          level: level,
+          domain: domain
+        }).catch(function (err) {
+          console.debug('[BreachWatcher] HUD sendMessage échoué:', err.message);
+        });
+      }, 100);
+    }).catch(function (err) {
+      console.debug('[BreachWatcher] HUD executeScript échoué:', err.message);
+    });
+  }
+
   try {
     const entry = {};
     entry[`tab_${tabId}`] = { url, domain, breachInfo, updatedAt: Date.now() };
@@ -935,7 +974,16 @@ browser.webNavigation.onCompleted.addListener(function(details) {
 browser.tabs.onActivated.addListener(function(activeInfo) {
   browser.tabs.get(activeInfo.tabId).then(function(tab) {
     if (tab && tab.url) {
-      processTabNavigation(tab.id, tab.url);
+      // onActivated : on met à jour le badge SANS toucher à seenDomains
+      // pour ne pas bloquer le HUD sur une vraie navigation onCompleted
+      var domain = extractMainDomain(tab.url);
+      if (domain) {
+        getDomainStatus(domain, false).then(function(breachInfo) {
+          updateTabBadge(tab.id, breachInfo);
+        }).catch(function() {});
+      } else {
+        updateTabBadge(tab.id, { hasBreach: false, count: 0 });
+      }
     }
   }).catch(function() {});
 });
