@@ -67,7 +67,11 @@
 
     const iconWrap = document.createElement('div');
     iconWrap.className = 'bw-cell-icon';
-    iconWrap.innerHTML = ICONS[i];
+    const iconDocument = new DOMParser().parseFromString(ICONS[i], 'image/svg+xml');
+    const icon = iconDocument.documentElement;
+    if (icon && icon.tagName.toLowerCase() === 'svg') {
+      iconWrap.appendChild(document.importNode(icon, true));
+    }
 
     const label = document.createElement('div');
     label.className = 'bw-cell-label';
