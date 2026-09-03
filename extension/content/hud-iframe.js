@@ -48,13 +48,13 @@
     ];
     wrapper.setAttribute('style', styles.join(' !important; ') + ' !important');
 
-    // ── iframe pointant vers le GIF de l'extension ───────────────────────────
+    // ── iframe pointant vers le conteneur dimensionné du GIF ────────────────
     const iframe = document.createElement('iframe');
     // 5 GIFs : hud1.gif (0→1), hud2.gif (0→2), hud3.gif (0→3),
     //           hud4.gif (0→4), hud5.gif (0→5)
     // Niveau 0 (démarrage) → on affiche hud1.gif par défaut
     const gifLevel = Math.max(1, level);
-    const gifUrl = browser.runtime.getURL('hud/hud' + gifLevel + '.gif');
+    const gifUrl = browser.runtime.getURL('hud/hud.html?gif=hud' + gifLevel + '.gif');
 
     const iframeStyles = [
       'width: 160px',

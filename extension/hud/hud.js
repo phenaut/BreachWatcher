@@ -55,8 +55,20 @@
   // ── Construction du ruban ─────────────────────────────────────────────────
   const ribbon = document.getElementById('bw-hud-ribbon');
   const frame  = document.getElementById('bw-hud-frame');
+  const gifName = params.get('gif');
+  const isGifMode = /^hud[1-5]\.gif$/.test(gifName || '');
 
-  for (let i = 0; i <= 5; i++) {
+  if (isGifMode) {
+    const viewport = document.getElementById('bw-hud-viewport');
+    const gif = document.createElement('img');
+    gif.className = 'bw-hud-gif';
+    gif.src = gifName;
+    gif.alt = '';
+    viewport.replaceChildren(gif);
+    frame.classList.add('bw-gif-mode');
+  }
+
+  for (let i = 0; i <= 5 && !isGifMode; i++) {
     const cell = document.createElement('div');
     cell.className = 'bw-cell';
     cell.dataset.level = String(i);
@@ -92,7 +104,9 @@
 
     // Étape 2 : scroll vers le niveau cible après 50ms
     setTimeout(function () {
-      ribbon.style.transform = 'translateY(-' + (level * CELL_HEIGHT) + 'px)';
+      if (!isGifMode) {
+        ribbon.style.transform = 'translateY(-' + (level * CELL_HEIGHT) + 'px)';
+      }
     }, 50);
   });
 
@@ -100,11 +114,11 @@
   setTimeout(function () {
     frame.classList.remove('bw-visible');
     frame.classList.add('bw-fadeout');
-  }, 4500);
+  }, isGifMode ? 7000 : 4500);
 
   // Étape 4 : fermeture de la fenêtre à 4900ms
   setTimeout(function () {
     window.close();
-  }, 4900);
+  }, isGifMode ? 7400 : 4900);
 
 }());

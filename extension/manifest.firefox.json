@@ -25,6 +25,9 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "hud/hud.html",
+        "hud/hud.css",
+        "hud/hud.js",
         "hud/hud1.gif",
         "hud/hud2.gif",
         "hud/hud3.gif",

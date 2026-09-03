@@ -11,9 +11,11 @@
   "permissions": [
     "webNavigation",
     "tabs",
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
+    "<all_urls>",
     "https://haveibeenpwned.com/*",
     "https://news.google.com/*",
     "https://frenchbreaches.com/feed.xml",
@@ -25,6 +27,9 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "hud/hud.html",
+        "hud/hud.css",
+        "hud/hud.js",
         "hud/hud1.gif",
         "hud/hud2.gif",
         "hud/hud3.gif",
