@@ -1,4 +1,7 @@
-## Extension XPI pour FireFox
+## Store Firefox
+[https://addons.mozilla.org/fr/firefox/addon/breachwatcher/](https://addons.mozilla.org/fr/firefox/addon/breachwatcher/)
+
+## Extension XPI pour FireFox 'Nightly built'
 Cliquez sur le lien depuis FireFox (copiez le lien Firefox et collez le dans la barre d'adresse de votre navigateur Firefox)
 
 [https://addons.mozilla.org/firefox/downloads/file/5003580/breachwatcher_xpi-1.0.26.xpi](https://addons.mozilla.org/firefox/downloads/file/5003580/breachwatcher_xpi-1.0.26.xpi)
